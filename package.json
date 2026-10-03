@@ -1,0 +1,31 @@
+{
+  "name": "ecosphere",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ecosphere - location-based gamified environmental education platform",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n API,WEB,WORKER -c blue,green,magenta \"npm:dev:api\" \"npm:dev:web\" \"npm:dev:worker\"",
+    "dev:api": "npm run dev -w backend",
+    "dev:web": "npm run dev -w frontend",
+    "dev:worker": "npm run dev:worker -w backend",
+    "build": "npm run build -w backend && npm run build -w frontend",
+    "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend",
+    "prisma:generate": "npm run prisma:generate -w backend",
+    "prisma:migrate": "npm run prisma:migrate -w backend",
+    "prisma:studio": "npm run prisma:studio -w backend",
+    "seed": "npm run seed -w backend",
+    "ai:install": "cd ai-service && pip install -r requirements.txt",
+    "ai:dev": "cd ai-service && uvicorn app.main:app --reload --port 8000"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.8.3"
+  }
+}

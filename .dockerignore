@@ -1,0 +1,12 @@
+node_modules
+frontend/dist
+backend/dist
+.git
+.env
+.env.*
+**/__pycache__
+*.log
+pgdata
+redisdata
+coverage
+playwright-report

@@ -1,0 +1,1048 @@
+// Ecosphere Prisma Schema
+// Reference: docs/DATA_MODEL.md
+//
+// PostGIS strategy:
+//   Geometry columns are declared as Unsupported("geometry(Point,4326)") so Prisma
+//   owns their DDL, but they are NOT part of the generated client. All spatial
+//   reads/writes go through raw SQL ($queryRaw / $executeRaw). See backend
+//   src/lib/postgis.ts for the raw query helpers.
+//   NOTE: after generating the initial migration, edit the migration SQL to add
+//   `NOT NULL` to geometry columns and `CREATE EXTENSION IF NOT EXISTS postgis;`
+//   at the top. `database/init/01_extensions.sql` also creates the extension for
+//   first-run of the docker PostGIS container.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums (closed sets)
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  ADMIN
+  TEACHER
+  STUDENT
+
+  @@map("user_role")
+}
+
+enum UserStatus {
+  PENDING_ADMIN_APPROVAL
+  PENDING_TEACHER_APPROVAL
+  APPROVED
+  REJECTED
+  SUSPENDED
+
+  @@map("user_status")
+}
+
+enum SchoolStatus {
+  ACTIVE
+  SUSPENDED
+
+  @@map("school_status")
+}
+
+enum TeacherVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+
+  @@map("teacher_verification_status")
+}
+
+enum QuestCategory {
+  TREE_PLANTATION
+  WASTE_COLLECTION
+  PARK_CLEANING
+  RECYCLING
+  BIODIVERSITY
+  AWARENESS
+  OTHER
+
+  @@map("quest_category")
+}
+
+enum QuestDifficulty {
+  EASY
+  MEDIUM
+  HARD
+  EXPERT
+
+  @@map("quest_difficulty")
+}
+
+enum ProofType {
+  PHOTO
+  VIDEO
+  PHOTO_AND_VIDEO
+
+  @@map("proof_type")
+}
+
+enum QuestStatus {
+  DRAFT
+  PUBLISHED
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  ARCHIVED
+
+  @@map("quest_status")
+}
+
+enum SideQuestType {
+  QUIZ
+  ESSAY
+  POSTER
+  PRESENTATION
+  VIDEO
+  ANIMATION
+  RESEARCH
+
+  @@map("side_quest_type")
+}
+
+enum AcceptanceStatus {
+  ACCEPTED
+  IN_PROGRESS
+  SUBMITTED
+  APPROVED
+  REJECTED
+  EXPIRED
+
+  @@map("acceptance_status")
+}
+
+enum SubmissionStatus {
+  PENDING_VERIFICATION
+  PENDING_MANUAL_REVIEW
+  AUTO_APPROVED
+  AUTO_REJECTED
+  APPROVED
+  REJECTED
+
+  @@map("submission_status")
+}
+
+enum AssetType {
+  IMAGE
+  VIDEO
+
+  @@map("asset_type")
+}
+
+enum RunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+
+  @@map("run_status")
+}
+
+enum Recommendation {
+  APPROVE
+  REJECT
+  NEEDS_MANUAL_REVIEW
+
+  @@map("recommendation")
+}
+
+enum FraudRisk {
+  LOW
+  MEDIUM
+  HIGH
+
+  @@map("fraud_risk")
+}
+
+enum VerificationCheckType {
+  GPS_PROXIMITY
+  TIMESTAMP_FRESHNESS
+  EXIF_METADATA
+  EXIF_GPS_CONSISTENCY
+  IMAGE_SIMILARITY
+  OBJECT_DETECTION
+  SCENE_CLASSIFICATION
+  DUPLICATE_DETECTION
+  IMAGE_QUALITY
+  DEVICE_SPOOFING
+
+  @@map("verification_check_type")
+}
+
+enum CheckStatus {
+  PASS
+  FAIL
+  WARN
+  SKIP
+
+  @@map("check_status")
+}
+
+enum XpSource {
+  QUEST_COMPLETION
+  SIDE_QUEST_COMPLETION
+  QUIZ
+  ASSIGNMENT_GRADE
+  BONUS
+  BADGE
+  STREAK
+  ADMIN_ADJUSTMENT
+  MANUAL
+
+  @@map("xp_source")
+}
+
+enum AssignmentType {
+  INDIVIDUAL
+  PROJECT
+  WRITTEN
+  RESEARCH
+  PRESENTATION
+  REPORT
+  FILE_SUBMISSION
+  ENVIRONMENTAL_ACTIVITY
+  OTHER
+
+  @@map("assignment_type")
+}
+
+enum AssignmentStatus {
+  DRAFT
+  PUBLISHED
+  SCHEDULED
+  CLOSED
+  ARCHIVED
+
+  @@map("assignment_status")
+}
+
+enum MaterialKind {
+  PDF
+  DOCX
+  PPT
+  IMAGE
+  VIDEO_LINK
+  TEXT
+  NOTE
+  LINK
+
+  @@map("material_kind")
+}
+
+enum SubmissionContentType {
+  DOCUMENT
+  IMAGE
+  TEXT
+  LINK
+  VIDEO
+
+  @@map("submission_content_type")
+}
+
+enum GradeStatus {
+  UNGRADED
+  GRADED
+  RETURNED
+
+  @@map("grade_status")
+}
+
+enum QuizStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+
+  @@map("quiz_status")
+}
+
+enum BadgeCategory {
+  XP
+  QUEST_COUNT
+  CATEGORY
+  STREAK
+  CONSISTENCY
+  SPECIAL
+
+  @@map("badge_category")
+}
+
+enum BadgeCriteria {
+  XP_THRESHOLD
+  QUEST_COUNT
+  CATEGORY_COUNT
+  STREAK_LENGTH
+  ACTIVITY_WEEKS
+  MANUAL
+
+  @@map("badge_criteria")
+}
+
+enum NotificationType {
+  QUEST_NEW
+  QUEST_EXPIRING
+  SUBMISSION_VERIFIED
+  SUBMISSION_REVIEWED
+  BADGE_EARNED
+  LEVEL_UP
+  XP_EARNED
+  SYSTEM
+  MANUAL
+
+  @@map("notification_type")
+}
+
+// ---------------------------------------------------------------------------
+// Identity & Organization
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique @map("email") // normalized lowercase in app layer (no citext dependency)
+  passwordHash String     @map("password_hash")
+  firstName    String     @map("first_name")
+  lastName     String     @map("last_name")
+  avatarUrl    String?    @map("avatar_url")
+  role         UserRole
+  status       UserStatus @default(PENDING_ADMIN_APPROVAL)
+  consentGiven Boolean    @default(false) @map("consent_given")
+  schoolId     String?    @map("school_id") // institution membership (source of truth for TEACHER/STUDENT)
+  lastLoginAt  DateTime?  @map("last_login_at")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  archivedAt   DateTime?  @map("archived_at")
+  // Approval state on the account itself (admin-approved Teachers, teacher/super
+  // approved Students, and seeded Admins). approval is the single source of truth.
+  approvedBy       String?   @map("approved_by")
+  approvedAt       DateTime? @map("approved_at")
+  rejectionReason  String?   @map("rejection_reason")
+
+  school       School?         @relation(fields: [schoolId], references: [id])
+  teacherProfile TeacherProfile?
+  studentProfile StudentProfile?
+  // Whichever ADMIN/TEACHER approved this user (self-relation).
+  approvedByUser User?  @relation("UserApprover", fields: [approvedBy], references: [id])
+  approvedUsers   User[] @relation("UserApprover")
+  // Teachers verified by this admin
+  verifiedTeachers TeacherProfile[] @relation("TeacherVerifier")
+  // Institution invitations created by this admin
+  createdInvitations InstitutionInvitation[] @relation("InvitationCreator")
+  classGroups     ClassGroup[]      @relation("HomeroomTeacher")
+  enrollments     Enrollment[]
+  quests          Quest[]           @relation("QuestAuthor")
+  sideQuests      SideQuest[]       @relation("SideQuestAuthor")
+  acceptances     QuestAcceptance[]
+  reviewedSubmissions QuestSubmission[] @relation("SubmissionReviewer")
+  xpTransactions XpTransaction[]
+  userBadges      UserBadge[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  quizAttempts    QuizAttempt[]
+  xpSettingUpdates XpSetting[]       @relation("XpSettingEditor")
+  refreshTokens   RefreshToken[]
+  assignments            Assignment[]            @relation("AssignmentAuthor")
+  assignmentSubmissions  AssignmentSubmission[]  @relation("AssignmentStudent")
+  assignmentsGraded      AssignmentSubmission[]  @relation("AssignmentGrader")
+  assignmentRecipients   AssignmentRecipient[]   @relation("AssignmentRecipientStudent")
+  studyMaterials         StudyMaterial[]         @relation("MaterialAuthor")
+  quizzes                Quiz[]                  @relation("QuizAuthor")
+  animations             StudentAnimation[]
+
+  @@index([status, role], map: "ix_users_status_role")
+  @@index([archivedAt], map: "ix_users_archived")
+  @@index([schoolId], map: "ix_users_school")
+  @@map("users")
+}
+
+// Refresh-token rotation ledger. Stores only a SHA-256 hash of the token, never
+// the raw value. `familyId` chains rotations so a replayed (used) token can
+// revoke every sibling in its family — the standard response to suspected theft.
+model RefreshToken {
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  tokenHash         String    @unique @map("token_hash")
+  familyId          String    @map("family_id")
+  expiresAt         DateTime  @map("expires_at")
+  revokedAt         DateTime? @map("revoked_at")
+  replacedByTokenId String?   @map("replaced_by_token_id")
+  userAgent         String?
+  ipAddress         String?   @map("ip_address")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "ix_refresh_tokens_user")
+  @@index([familyId], map: "ix_refresh_tokens_family")
+  @@index([expiresAt], map: "ix_refresh_tokens_expires")
+  @@map("refresh_tokens")
+}
+
+model TeacherProfile {
+  id         String   @id @default(uuid())
+  userId     String   @unique @map("user_id")
+  schoolId   String?  @map("school_id")
+  phone      String?  @map("phone")
+  bio        String?
+  department String?  @map("department")
+  employeeId String?  @map("employee_id")
+  teacherId  String?  @unique @map("teacher_id") // public-facing TCH-AIT-000001, server-generated
+  designation String? @map("designation")
+  verificationStatus TeacherVerificationStatus @default(PENDING) @map("verification_status")
+  verifiedAt DateTime? @map("verified_at")
+  verifiedBy String?  @map("verified_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school School? @relation(fields: [schoolId], references: [id])
+  verifiedByUser User? @relation("TeacherVerifier", fields: [verifiedBy], references: [id])
+
+  @@map("teacher_profiles")
+}
+
+model StudentProfile {
+  id               String    @id @default(uuid())
+  userId           String    @unique @map("user_id")
+  schoolId         String?   @map("school_id")
+  grade            String?
+  department       String?   @map("department")
+  usn              String?   @map("usn")
+  semester         String?   @map("semester")
+  phone            String?   @map("phone")
+  streakCount      Int       @default(0) @map("streak_count")
+  lastActivityDate DateTime? @map("last_activity_date")
+  privacyMode      Boolean   @default(false) @map("privacy_mode")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school School? @relation(fields: [schoolId], references: [id])
+
+  @@map("student_profiles")
+}
+
+model School {
+  id           String       @id @default(uuid())
+  name         String       @map("name")
+  city         String?
+  state        String?
+  country      String
+  address      String?
+  contactEmail String?      @map("contact_email")
+  status       SchoolStatus @default(ACTIVE)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  archivedAt   DateTime?    @map("archived_at")
+
+  users        User[]
+  teachers    TeacherProfile[]
+  students    StudentProfile[]
+  classGroups ClassGroup[]
+  invitations InstitutionInvitation[]
+  assignments Assignment[]
+
+  @@map("schools")
+}
+
+model InstitutionInvitation {
+  id         String   @id @default(uuid())
+  token      String   @unique @map("token")
+  schoolId   String   @map("school_id")
+  email      String   @map("email")
+  role       UserRole @default(TEACHER)
+  expiresAt  DateTime @map("expires_at")
+  usedAt     DateTime? @map("used_at")
+  usedBy     String?  @map("used_by")
+  createdBy  String   @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  school   School @relation(fields: [schoolId], references: [id])
+  creator  User   @relation("InvitationCreator", fields: [createdBy], references: [id])
+
+  @@index([token], map: "ix_invitations_token")
+  @@index([schoolId], map: "ix_invitations_school")
+  @@map("institution_invitations")
+}
+
+model ClassGroup {
+  id         String    @id @default(uuid())
+  schoolId   String    @map("school_id")
+  teacherId  String    @map("teacher_id") // homeroom teacher
+  name       String
+  joinCode   String    @unique @map("join_code")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  archivedAt DateTime? @map("archived_at")
+
+  school      School       @relation(fields: [schoolId], references: [id])
+  teacher     User         @relation("HomeroomTeacher", fields: [teacherId], references: [id])
+  enrollments Enrollment[]
+  quests      Quest[]
+  sideQuests  SideQuest[]
+  assignments Assignment[]
+  quizzes     Quiz[]
+
+  @@index([teacherId], map: "ix_class_groups_teacher")
+  @@map("class_groups")
+}
+
+model Enrollment {
+  id           String    @id @default(uuid())
+  classGroupId String    @map("class_group_id")
+  studentId    String    @map("student_id")
+  enrolledAt   DateTime  @default(now()) @map("enrolled_at")
+  leftAt       DateTime? @map("left_at")
+
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  student    User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([classGroupId, studentId], map: "ux_enrollments_class_student")
+  @@map("enrollments")
+}
+
+// ---------------------------------------------------------------------------
+// Quests
+// ---------------------------------------------------------------------------
+
+model Quest {
+  id                String                               @id @default(uuid())
+  teacherId         String                               @map("teacher_id")
+  classGroupId      String?                              @map("class_group_id") // NULL = public/global
+  title             String
+  description       String
+  category          QuestCategory
+  difficulty        QuestDifficulty                      @default(EASY)
+  xpReward          BigInt                               @map("xp_reward")
+  location          Unsupported("geometry(Point,4326)")? // managed via raw SQL
+  addressText       String?                              @map("address_text")
+  radiusMeters      Int                                  @map("radius_meters")
+  startsAt          DateTime                             @map("starts_at")
+  endsAt            DateTime                             @map("ends_at")
+  maxParticipants   Int?                                 @map("max_participants")
+  requiredProofType ProofType                            @default(PHOTO) @map("required_proof_type")
+  minPhotoCount     Int                                  @default(1) @map("min_photo_count")
+  policyId          String?                              @map("policy_id")
+  status            QuestStatus                          @default(DRAFT)
+  publishedAt       DateTime?                            @map("published_at")
+  createdAt         DateTime                             @default(now()) @map("created_at")
+  updatedAt         DateTime                             @updatedAt @map("updated_at")
+  archivedAt        DateTime?                            @map("archived_at")
+
+  teacher     User                  @relation("QuestAuthor", fields: [teacherId], references: [id])
+  classGroup  ClassGroup?           @relation(fields: [classGroupId], references: [id])
+  policy      AiVerificationPolicy? @relation(fields: [policyId], references: [id])
+  acceptances QuestAcceptance[]
+
+  // CHECK constraints (not expressible in the Prisma schema; add to migration SQL):
+  //   CONSTRAINT ck_quests_dates   CHECK (ends_at > starts_at)
+  //   CONSTRAINT ck_quests_radius  CHECK (radius_meters BETWEEN 10 AND 1000)
+  @@index([status, startsAt, endsAt], map: "ix_quests_status_dates")
+  @@index([classGroupId, status], map: "ix_quests_class")
+  @@index([teacherId, status], map: "ix_quests_teacher")
+  // Spatial index added via raw migration: CREATE INDEX gix_quests_location ON quests USING GIST (location);
+  @@map("quests")
+}
+
+model SideQuest {
+  id            String        @id @default(uuid())
+  teacherId     String        @map("teacher_id")
+  classGroupId  String?       @map("class_group_id")
+  title         String
+  description   String?
+  type          SideQuestType
+  content       Json // quiz Q&A / prompt / rubric / resources
+  xpReward      BigInt        @map("xp_reward")
+  passThreshold Int?          @map("pass_threshold") // % required to pass a QUIZ
+  dueAt         DateTime?     @map("due_at")
+  status        QuestStatus   @default(DRAFT)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  archivedAt    DateTime?     @map("archived_at")
+
+  teacher     User              @relation("SideQuestAuthor", fields: [teacherId], references: [id])
+  classGroup  ClassGroup?       @relation(fields: [classGroupId], references: [id])
+  questions   QuizQuestion[]
+  acceptances QuestAcceptance[]
+  attempts    QuizAttempt[]
+
+  @@index([teacherId, status], map: "ix_side_quests_teacher")
+  @@index([classGroupId, status], map: "ix_side_quests_class")
+  @@map("side_quests")
+}
+
+model QuizQuestion {
+  id           String   @id @default(uuid())
+  sideQuestId  String?  @map("side_quest_id") // NULL when part of a standalone Quiz
+  quizId       String?  @map("quiz_id")       // NULL when part of a SideQuest
+  position     Int
+  prompt       String
+  options      Json
+  correctIndex Int      @map("correct_index") // never serialized to clients
+  explanation  String?
+  qType            String?  @map("q_type") // question-type key ("MCQ" | "TRUE_FALSE" | "MATCH" | "SCENARIO" | "CASE_STUDY")
+  difficultyScore  Decimal? @map("difficulty_score")
+  aiGenerated      Boolean  @default(false) @map("ai_generated")
+  reviewState      String?  @map("review_state") // "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "EDITED"
+  sourceRunId      String?  @map("source_run_id")
+
+  sideQuest SideQuest? @relation(fields: [sideQuestId], references: [id], onDelete: Cascade)
+  quiz      Quiz?      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@unique([sideQuestId, position], map: "ux_quiz_questions_position")
+  @@unique([quizId, position], map: "ux_quiz_questions_quiz_position")
+  @@map("quiz_questions")
+}
+
+model AiVerificationPolicy {
+  id                       String                  @id @default(uuid())
+  name                     String
+  enabledChecks            VerificationCheckType[] @map("enabled_checks")
+  thresholds               Json // per-check thresholds (confidence, distance, etc.)
+  autoApproveEnabled       Boolean                 @default(true) @map("auto_approve_enabled")
+  autoApproveMinConfidence Decimal                 @default(0.95) @map("auto_approve_min_confidence")
+  autoRejectEnabled        Boolean                 @default(false) @map("auto_reject_enabled")
+  autoRejectMinConfidence  Decimal                 @default(0.99) @map("auto_reject_min_confidence")
+  isDefault                Boolean                 @default(false) @map("is_default")
+  createdAt                DateTime                @default(now()) @map("created_at")
+  updatedAt                DateTime                @updatedAt @map("updated_at")
+
+  quests Quest[]
+
+  @@map("ai_verification_policies")
+}
+
+// ---------------------------------------------------------------------------
+// Acceptance, Submission, Evidence, Verification
+// ---------------------------------------------------------------------------
+
+model QuestAcceptance {
+  id          String           @id @default(uuid())
+  questId     String?          @map("quest_id")
+  sideQuestId String?          @map("side_quest_id")
+  studentId   String           @map("student_id")
+  acceptedAt  DateTime         @default(now()) @map("accepted_at")
+  status      AcceptanceStatus @default(ACCEPTED)
+  completedAt DateTime?        @map("completed_at")
+  xpAwarded   BigInt           @default(0) @map("xp_awarded")
+  bonusXp     BigInt           @default(0) @map("bonus_xp")
+  isArchived  Boolean          @default(false) @map("is_archived")
+
+  quest       Quest?            @relation(fields: [questId], references: [id], onDelete: Cascade)
+  sideQuest   SideQuest?        @relation(fields: [sideQuestId], references: [id], onDelete: Cascade)
+  student     User              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  submissions QuestSubmission[]
+
+  // exactly one of quest/side_quest
+  // CHECK constraint (add to migration SQL):
+  //   CONSTRAINT ck_acceptances_source CHECK ((quest_id IS NULL) <> (side_quest_id IS NULL))
+  @@unique([questId, studentId], map: "ux_acceptances_quest_student")
+  @@unique([sideQuestId, studentId], map: "ux_acceptances_side_student")
+  @@index([studentId, status], map: "ix_acceptances_student")
+  @@map("quest_acceptances")
+}
+
+model QuestSubmission {
+  id                String                               @id @default(uuid())
+  acceptanceId      String                               @map("acceptance_id")
+  submittedAt       DateTime                             @default(now()) @map("submitted_at")
+  deviceTimestamp   DateTime?                            @map("device_timestamp")
+  location          Unsupported("geometry(Point,4326)")? // managed via raw SQL
+  locationAccuracyM Int?                                 @map("location_accuracy_m")
+  notes             String?
+  status            SubmissionStatus                     @default(PENDING_VERIFICATION)
+  reviewedBy        String?                              @map("reviewed_by")
+  reviewedAt        DateTime?                            @map("reviewed_at")
+  reviewNote        String?                              @map("review_note")
+  bonusXp           BigInt                               @default(0) @map("bonus_xp")
+  reSubmissionOf    String?                              @map("re_submission_of")
+  createdAt         DateTime                             @default(now()) @map("created_at")
+  updatedAt         DateTime                             @updatedAt @map("updated_at")
+
+  acceptance      QuestAcceptance   @relation(fields: [acceptanceId], references: [id], onDelete: Cascade)
+  reviewer        User?             @relation("SubmissionReviewer", fields: [reviewedBy], references: [id])
+  assets          EvidenceAsset[]
+  verification    VerificationRun?
+  resubmissionRel QuestSubmission?  @relation("ResubmissionChain", fields: [reSubmissionOf], references: [id])
+  reSubmissions   QuestSubmission[] @relation("ResubmissionChain")
+
+  @@index([status, reviewedBy], map: "ix_quest_submissions_status")
+  @@index([acceptanceId], map: "ix_quest_submissions_acceptance")
+  // Spatial index via raw migration: CREATE INDEX gix_quest_submissions_location ... GIST (location);
+  @@map("quest_submissions")
+}
+
+model EvidenceAsset {
+  id                 String                               @id @default(uuid())
+  submissionId       String                               @map("submission_id")
+  assetType          AssetType                            @map("asset_type")
+  cloudinaryPublicId String                               @map("cloudinary_public_id")
+  secureUrl          String                               @map("secure_url")
+  mimeType           String                               @map("mime_type")
+  sizeBytes          BigInt                               @map("size_bytes")
+  width              Int?
+  height             Int?
+  exifGps            Unsupported("geometry(Point,4326)")? // EXIF-derived, raw SQL
+  exifTakenAt        DateTime?                            @map("exif_taken_at")
+  exifRaw            Json?                                @map("exif_raw") // minimal retained EXIF
+  perceptualHash     BigInt?                              @map("perceptual_hash") // phash for duplicate detection
+  uploadedAt         DateTime                             @default(now()) @map("uploaded_at")
+
+  submission QuestSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([perceptualHash], map: "ix_evidence_assets_hash")
+  @@index([submissionId], map: "ix_evidence_assets_submission")
+  @@map("evidence_assets")
+}
+
+model VerificationRun {
+  id                    String          @id @default(uuid())
+  submissionId          String          @unique @map("submission_id")
+  status                RunStatus       @default(PENDING)
+  startedAt             DateTime?       @map("started_at")
+  completedAt           DateTime?       @map("completed_at")
+  overallRecommendation Recommendation? @map("overall_recommendation")
+  overallConfidence     Decimal?        @map("overall_confidence")
+  fraudRisk             FraudRisk?      @map("fraud_risk")
+  summary               String?
+  aiServiceVersion      String?         @map("ai_service_version")
+  errorMessage          String?         @map("error_message")
+  attemptCount          Int             @default(0) @map("attempt_count")
+
+  submission QuestSubmission     @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  checks     VerificationCheck[]
+
+  @@map("verification_runs")
+}
+
+model VerificationCheck {
+  id         String                @id @default(uuid())
+  runId      String                @map("run_id")
+  checkType  VerificationCheckType @map("check_type")
+  status     CheckStatus
+  score      Decimal?
+  confidence Decimal?
+  message    String?
+  details    Json?
+
+  run VerificationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, checkType], map: "ux_verification_checks_run_type")
+  @@map("verification_checks")
+}
+
+// ---------------------------------------------------------------------------
+// Gamification
+// ---------------------------------------------------------------------------
+
+model XpTransaction {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  sourceType   XpSource @map("source_type")
+  sourceId     String?  @map("source_id") // polymorphic (quest/submission/badge), no FK
+  amount       BigInt
+  balanceAfter BigInt   @map("balance_after")
+  note         String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)], map: "ix_xp_transactions_user_created")
+  @@index([sourceType, sourceId], map: "ix_xp_transactions_source")
+  @@map("xp_transactions")
+}
+
+model Badge {
+  id            String        @id @default(uuid())
+  key           String        @unique
+  name          String
+  description   String
+  iconUrl       String        @map("icon_url")
+  category      BadgeCategory
+  criteriaType  BadgeCriteria @map("criteria_type")
+  criteriaValue Json          @map("criteria_value") // {threshold: 500} etc.
+  xpBonus       BigInt        @default(0) @map("xp_bonus")
+  isActive      Boolean       @default(true) @map("is_active")
+
+  userBadges UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id       String   @id @default(uuid())
+  userId   String   @map("user_id")
+  badgeId  String   @map("badge_id")
+  earnedAt DateTime @default(now()) @map("earned_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId], map: "ux_user_badges_user_badge")
+  @@map("user_badges")
+}
+
+model XpSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  label       String
+  value       Json
+  description String?
+  updatedBy   String?  @map("updated_by")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  editor User? @relation("XpSettingEditor", fields: [updatedBy], references: [id])
+
+  @@map("xp_settings")
+}
+
+model QuizAttempt {
+  id          String   @id @default(uuid())
+  quizId      String?  @map("quiz_id")
+  sideQuestId String?  @map("side_quest_id")
+  studentId   String   @map("student_id")
+  score       Int
+  maxScore    Int      @map("max_score")
+  passed      Boolean
+  answers     Json
+  submittedAt DateTime @default(now()) @map("submitted_at")
+
+  quiz      Quiz?      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  sideQuest SideQuest? @relation(fields: [sideQuestId], references: [id], onDelete: Cascade)
+  student   User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, sideQuestId], map: "ux_quiz_attempts_user_quest")
+  @@unique([quizId, studentId], map: "ux_quiz_attempts_quiz_student")
+  @@map("quiz_attempts")
+}
+
+// ---------------------------------------------------------------------------
+// Assignments, study materials & standalone AI-generated quizzes
+// ---------------------------------------------------------------------------
+
+model Assignment {
+  id                     String           @id @default(uuid())
+  teacherId              String           @map("teacher_id")
+  schoolId               String?          @map("school_id")
+  classGroupId           String?          @map("class_group_id") // NULL = school-wide / specific students
+  targetType             String           @default("CLASS") @map("target_type") // "CLASS" | "STUDENTS"
+  title                  String
+  description            String
+  subject                String?          @map("subject")
+  type                   AssignmentType   @default(INDIVIDUAL)
+  topic                  QuestCategory
+  difficulty             QuestDifficulty  @default(MEDIUM)
+  xpReward               BigInt           @map("xp_reward")
+  startAt                DateTime         @default(now()) @map("start_at")
+  dueAt                  DateTime         @map("due_at")
+  allowLate              Boolean          @default(true) @map("allow_late")
+  lateDeadline           DateTime?        @map("late_deadline")
+  submissionType         String           @default("TEXT_AND_FILE") @map("submission_type")
+  allowedFormats         Json?            @map("allowed_formats")
+  maxFileSizeMb          Int              @default(10) @map("max_file_size_mb")
+  maxFiles               Int              @default(3) @map("max_files")
+  maxMarks               Int              @default(100) @map("max_marks")
+  passMarks              Int?             @map("pass_marks")
+  gradingType            String           @default("MARKS") @map("grading_type")
+  allowResubmission      Boolean          @default(true) @map("allow_resubmission")
+  maxAttempts            Int              @default(1) @map("max_attempts")
+  teacherFeedbackEnabled Boolean          @default(true) @map("teacher_feedback_enabled")
+  rubric                 Json?            @map("rubric")
+  badgeId                String?          @map("badge_id")
+  category               String?          @map("category")
+  relatedQuestId         String?          @map("related_quest_id")
+  status                 AssignmentStatus @default(DRAFT)
+  publishedAt            DateTime?        @map("published_at")
+  createdAt              DateTime         @default(now()) @map("created_at")
+  updatedAt              DateTime         @updatedAt @map("updated_at")
+  archivedAt             DateTime?        @map("archived_at")
+
+  teacher     User                   @relation("AssignmentAuthor", fields: [teacherId], references: [id])
+  school      School?                @relation(fields: [schoolId], references: [id])
+  classGroup  ClassGroup?            @relation(fields: [classGroupId], references: [id])
+  materials   StudyMaterial[]
+  submissions AssignmentSubmission[]
+  recipients  AssignmentRecipient[]
+
+  @@index([teacherId, status], map: "ix_assignments_teacher")
+  @@index([schoolId, status], map: "ix_assignments_school")
+  @@index([classGroupId, status], map: "ix_assignments_class")
+  @@map("assignments")
+}
+
+model AssignmentRecipient {
+  id           String   @id @default(uuid())
+  assignmentId String   @map("assignment_id")
+  studentId    String   @map("student_id")
+  assignedAt   DateTime @default(now()) @map("assigned_at")
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student    User       @relation("AssignmentRecipientStudent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, studentId], map: "ux_assignment_recipients")
+  @@index([studentId], map: "ix_assignment_recipients_student")
+  @@map("assignment_recipients")
+}
+
+model StudyMaterial {
+  id           String       @id @default(uuid())
+  teacherId    String       @map("teacher_id")
+  assignmentId String?      @map("assignment_id") // NULL = standalone material (e.g. quiz source)
+  kind         MaterialKind
+  title        String
+  filename     String?
+  url          String?      // served /api/v1/uploads/* or external link
+  mimeType     String?      @map("mime_type")
+  sizeBytes    BigInt?      @map("size_bytes")
+  notes        String?
+  uploadedAt   DateTime     @default(now()) @map("uploaded_at")
+
+  teacher    User            @relation("MaterialAuthor", fields: [teacherId], references: [id])
+  assignment Assignment?     @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  quizzes    Quiz[]
+
+  @@index([teacherId], map: "ix_study_materials_teacher")
+  @@index([assignmentId], map: "ix_study_materials_assignment")
+  @@map("study_materials")
+}
+
+model AssignmentSubmission {
+  id               String                @id @default(uuid())
+  assignmentId     String                @map("assignment_id")
+  studentId        String                @map("student_id")
+  attempt          Int                   @default(1)
+  contentKind      SubmissionContentType @map("content_kind")
+  title            String?
+  text             String?               // text response / essay body
+  externalUrl      String?               @map("external_url") // link submissions
+  submittedAt      DateTime              @default(now()) @map("submitted_at")
+  submissionStatus String                @default("ON_TIME") @map("submission_status") // "ON_TIME" | "LATE"
+  gradeStatus      GradeStatus           @default(UNGRADED) @map("grade_status")
+  score            Int?                  // 0-maxMarks
+  gradeNotes       String?               @map("grade_notes")
+  aiFeedback       String?               @map("ai_feedback")
+  xpAwarded        BigInt                @default(0) @map("xp_awarded")
+  gradedBy         String?               @map("graded_by")
+  gradedAt         DateTime?             @map("graded_at")
+  resubmissionOf   String?               @map("resubmission_of")
+
+  assignment Assignment        @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student    User              @relation("AssignmentStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  grader     User?             @relation("AssignmentGrader", fields: [gradedBy], references: [id])
+  assets     AssignmentAsset[]
+
+  @@unique([assignmentId, studentId, attempt], map: "ux_assignment_submissions_attempt")
+  @@index([studentId, gradeStatus], map: "ix_assignment_submissions_student")
+  @@map("assignment_submissions")
+}
+
+model AssignmentAsset {
+  id           String       @id @default(uuid())
+  submissionId String       @map("submission_id")
+  kind         MaterialKind
+  url          String
+  filename     String?
+  mimeType     String?      @map("mime_type")
+  sizeBytes    BigInt?      @map("size_bytes")
+  uploadedAt   DateTime     @default(now()) @map("uploaded_at")
+
+  submission AssignmentSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  @@map("assignment_assets")
+}
+
+model Quiz {
+  id            String          @id @default(uuid())
+  teacherId     String          @map("teacher_id")
+  materialId    String?         @map("material_id") // study material this was generated from
+  classGroupId  String?         @map("class_group_id") // NULL = school-wide / public
+  title         String
+  description   String?
+  topic         String          @default("OTHER") // free-text subject auto-detected from material
+  difficulty    QuestDifficulty @default(MEDIUM)
+  status        QuizStatus      @default(DRAFT)
+  passThreshold Int?            @map("pass_threshold") // % required to pass
+  timeLimitMin  Int?            @map("time_limit_min")
+  questionCount Int             @default(0) @map("question_count")
+  sourceRunId   String?         @map("source_run_id") // mock/AI generation provenance
+  publishedAt   DateTime?       @map("published_at")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  teacher    User           @relation("QuizAuthor", fields: [teacherId], references: [id])
+  material   StudyMaterial? @relation(fields: [materialId], references: [id])
+  classGroup ClassGroup?    @relation(fields: [classGroupId], references: [id])
+  questions  QuizQuestion[]
+  attempts   QuizAttempt[]
+
+  @@index([teacherId, status], map: "ix_quizzes_teacher")
+  @@index([classGroupId, status], map: "ix_quizzes_class")
+  @@map("quizzes")
+}
+
+// ---------------------------------------------------------------------------
+// Notifications & Audit
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String
+  body      String?
+  payload   Json?
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)], map: "ix_notifications_user_created")
+  @@index([userId, isRead], map: "ix_notifications_unread")
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id") // actor; NULL for system events
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  meta       Json?
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  // Append-only: application DB role must NOT be granted UPDATE/DELETE on this table.
+  @@index([createdAt], map: "ix_audit_logs_created")
+  @@index([entityType, entityId], map: "ix_audit_logs_entity")
+  @@map("audit_logs")
+}
+
+model StudentAnimation {
+  id              String   @id @default(uuid())
+  studentId       String   @map("student_id")
+  prompt          String
+  topic           String?
+  style           String?
+  durationSeconds Int      @map("duration_seconds")
+  scenes          Json
+  status          String   @default("GENERATING")
+  videoUrl        String?  @map("video_url")
+  thumbnailUrl    String?  @map("thumbnail_url")
+  provider        String?
+  errorMessage    String?  @map("error_message")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, createdAt(sort: Desc)], map: "ix_student_animations_student")
+  @@map("student_animations")
+}

@@ -1,0 +1,72 @@
+# Environment / secrets (any depth)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+.next/
+.vite/
+*.tsbuildinfo
+
+# Test / coverage
+coverage/
+playwright-report/
+test-results/
+.pytest_cache/
+.pytest_out.txt
+pytest-out.txt
+.coverage
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor / IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+
+# Local databases / generated data
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker / local data
+docker-data/
+pgdata/
+redisdata/
+
+# Generated AI/model artifacts & local caches
+models/
+*.pt
+*.onnx
+
+# Runtime uploads (user-generated evidence files)
+uploads/

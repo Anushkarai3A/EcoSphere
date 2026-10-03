@@ -1,0 +1,207 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap");
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * ECOSPHERE gallery design tokens (Tailwind v4 CSS-first).
+ * Monochrome cinematic system: BLACK VOID canvas, WHITE type, MICRO MONO UI,
+ * hairline structure. Content/artwork carries color; chrome never does.
+ *
+ * --color-void      #000000  universal page canvas
+ * --color-bone      #ffffff  primary text / display type
+ * --color-charcoal  #444345  interactive surfaces / buttons
+ * --color-frost     #e2e2e2  hairlines / borders / dividers
+ * --color-ash       #b8bab9  muted / inactive surfaces
+ */
+:root {
+  --color-void: #000000;
+  --color-bone: #ffffff;
+  --color-charcoal: #444345;
+  --color-frost: #e2e2e2;
+  --color-ash: #b8bab9;
+
+  /* Display + micro typography (Roobert/GT America Mono proprietary → Inter/JetBrains Mono). */
+  --font-display: "Roobert", "Inter", system-ui, sans-serif;
+  --font-micro: "GT America Mono", "JetBrains Mono", ui-monospace, monospace;
+
+  /* Spacing scale (4px base). */
+  --spacing-4: 4px;
+  --spacing-16: 16px;
+  --spacing-20: 20px;
+  --spacing-40: 40px;
+  --spacing-116: 116px;
+
+  /* Radii. */
+  --radius-sm: 2px;
+  --radius-lg: 10px;
+  --radius-2xl: 20px;
+
+  /* shadcn compat mapped onto the monochrome system. */
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #101010;
+  --card-foreground: #ffffff;
+  --popover: #101010;
+  --popover-foreground: #ffffff;
+  --primary: #444345;
+  --primary-foreground: #ffffff;
+  --secondary: #1a1a1a;
+  --secondary-foreground: #ffffff;
+  --muted: #1a1a1a;
+  --muted-foreground: #b8bab9;
+  --accent: #1a1a1a;
+  --accent-foreground: #ffffff;
+  --destructive: #e5484d;
+  --border: #e2e2e2;
+  --input: #e2e2e2;
+  --ring: #e2e2e2;
+  --radius: 10px;
+}
+
+.dark {
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #101010;
+  --card-foreground: #ffffff;
+  --popover: #101010;
+  --popover-foreground: #ffffff;
+  --primary: #444345;
+  --primary-foreground: #ffffff;
+  --secondary: #1a1a1a;
+  --secondary-foreground: #ffffff;
+  --muted: #1a1a1a;
+  --muted-foreground: #b8bab9;
+  --accent: #1a1a1a;
+  --accent-foreground: #ffffff;
+  --destructive: #e5484d;
+  --border: #e2e2e2;
+  --input: #e2e2e2;
+  --ring: #e2e2e2;
+}
+
+@theme inline {
+  --color-void: var(--color-void);
+  --color-bone: var(--color-bone);
+  --color-charcoal: var(--color-charcoal);
+  --color-frost: var(--color-frost);
+  --color-ash: var(--color-ash);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-display: var(--font-display);
+  --font-micro: var(--font-micro);
+  --text-display: 80px;
+  --leading-display: 0.78;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    background-color: #000000;
+  }
+  body {
+    @apply bg-void text-bone antialiased;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  ::selection {
+    background: #444345;
+    color: #ffffff;
+  }
+  :focus-visible {
+    outline: 1px solid #e2e2e2;
+    outline-offset: 2px;
+  }
+}
+
+/* Monumental display type: 80px / 0.78 / weight 400, left aligned. */
+@utility text-gallery-display {
+  font-family: var(--font-display);
+  font-size: clamp(48px, 8vw, 80px);
+  line-height: 0.78;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+/* Micro mono UI: 10–12px instrument text. */
+@utility text-gallery-micro {
+  font-family: var(--font-micro);
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-weight: 400;
+}
+
+@utility text-gallery-caption {
+  font-family: var(--font-micro);
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: -0.2px;
+  font-weight: 400;
+}
+
+/* Signature underline mark: 1px rule, ~40% of the line, never decorative. */
+@utility gallery-underline {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 10px;
+}
+.gallery-underline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 40%;
+  max-width: 60%;
+  height: 1px;
+  background-color: #e2e2e2;
+}
+
+/* Hairline structural rule. */
+@utility gallery-rule {
+  border-top: 1px solid rgb(226 226 226 / 0.22);
+}
+
+/* Restrained gallery motion: fade / rise / line reveal. No glow, no bounce. */
+@keyframes gallery-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility animate-gallery-rise {
+  animation: gallery-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Respect users who prefer reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
