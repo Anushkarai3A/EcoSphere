@@ -4,6 +4,7 @@
 
 import { env } from "../config/env.js";
 import { AppError } from "./http.js";
+import { logger } from "./logger.js";
 
 export interface ExtractedDocument {
   filename: string;
@@ -29,9 +30,21 @@ export interface GeneratedQuiz {
   questions: GeneratedQuizQuestion[];
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
+async function errorDetail(res: Response): Promise<string> {
+  const raw = await res.text().catch(() => "");
+  if (!raw) return "";
+  try {
+    const body = JSON.parse(raw) as { detail?: unknown };
+    if (typeof body.detail === "string") return body.detail;
+  } catch {
+    // Fall back to the bounded raw body below.
+  }
+  return raw.slice(0, 500);
+}
+
+async function post<T>(path: string, body: unknown, timeoutMs = env.AI_TIMEOUT_MS): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), env.AI_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(`${env.AI_SERVICE_URL}${path}`, {
       method: "POST",
@@ -43,25 +56,50 @@ async function post<T>(path: string, body: unknown): Promise<T> {
       signal: controller.signal,
     });
     if (!res.ok) {
-      const detail = await res.text().catch(() => "");
+      const detail = await errorDetail(res);
       const status = res.status;
-      // Classify the error more precisely for upstream consumers
+      // Classify provider/config failures without leaking internal details.
       if (status === 401 || status === 403) {
         throw new AppError(502, "AI_AUTH_ERROR", `AI service authentication failed (${status})`);
       }
       if (status === 429) {
-        throw new AppError(429, "AI_RATE_LIMITED", "AI service is rate-limited — please retry shortly");
+        throw new AppError(429, "AI_RATE_LIMITED", detail || "AI service is rate-limited — please retry shortly");
       }
-      if (status >= 500) {
-        throw new AppError(502, "AI_SERVICE_ERROR", `AI service error (${status})${detail ? `: ${detail}` : ""}`);
+      if (status === 503) {
+        throw new AppError(503, "AI_NOT_CONFIGURED", detail || "AI service is not configured");
       }
-      throw new AppError(502, "AI_SERVICE_ERROR", `AI service responded ${status}${detail ? `: ${detail}` : ""}`);
+      if (status === 504) {
+        throw new AppError(504, "AI_TIMEOUT", detail || "AI provider request timed out");
+      }
+      if (status === 400 || status === 422) {
+        throw new AppError(422, "AI_INPUT_INVALID", detail || "The AI service rejected the study material");
+      }
+      if (status === 502) {
+        throw new AppError(502, "AI_PROVIDER_ERROR", detail || "AI provider request failed");
+      }
+      throw new AppError(502, "AI_SERVICE_ERROR", `AI service error (${status})`);
     }
     return (await res.json()) as T;
   } catch (err) {
-    if (err instanceof AppError) throw err;
-    const reason = err instanceof Error && err.name === "AbortError" ? "timed out" : "unreachable";
-    throw new AppError(502, "AI_SERVICE_ERROR", `AI service ${reason} at ${env.AI_SERVICE_URL}`);
+    if (err instanceof AppError) {
+      if (err.statusCode >= 500) {
+        logger.warn(
+          { path, statusCode: err.statusCode, code: err.code },
+          "AI service request failed",
+        );
+      }
+      throw err;
+    }
+    if (err instanceof Error && err.name === "AbortError") {
+      logger.warn({ path, timeoutMs }, "AI service request timed out");
+      throw new AppError(504, "AI_TIMEOUT", "AI service request timed out");
+    }
+    logger.error({ err, path, timeoutMs }, "AI service request failed before receiving a response");
+    throw new AppError(
+      502,
+      "AI_SERVICE_ERROR",
+      "AI service is unreachable. Check that the AI service is running, then retry.",
+    );
   } finally {
     clearTimeout(timeout);
   }
@@ -109,13 +147,17 @@ export async function generateQuizFromText(input: {
       q_type: string;
       difficulty_score: number;
     }[];
-  }>("/ai/v1/generate/quiz", {
-    run_id: input.runId,
-    text: input.text,
-    count: input.count,
-    difficulty: input.difficulty,
-    topic: input.topic ?? null,
-  });
+  }>(
+    "/ai/v1/generate/quiz",
+    {
+      run_id: input.runId,
+      text: input.text,
+      count: input.count,
+      difficulty: input.difficulty,
+      topic: input.topic ?? null,
+    },
+    env.AI_QUIZ_TIMEOUT_MS,
+  );
   return {
     runId: res.run_id,
     detectedTopic: res.detected_topic,

@@ -1,13 +1,18 @@
 import type { AcceptanceStatus, QuestCategory, QuestDifficulty, SubmissionStatus } from "./types";
 
+/**
+ * Category display colors — EcoSphere quest-marker palette:
+ * conservation=green, cleanup/water=cyan/blue, learning=purple,
+ * challenge=gold, wildlife=coral, recycling=orange, other=white.
+ */
 export const questCategories: ReadonlyArray<{ value: QuestCategory; label: string; color: string }> = [
-  { value: "TREE_PLANTATION", label: "Tree plantation", color: "#16a34a" },
-  { value: "WASTE_COLLECTION", label: "Waste collection", color: "#d97706" },
-  { value: "PARK_CLEANING", label: "Park cleaning", color: "#0ea5e9" },
-  { value: "RECYCLING", label: "Recycling", color: "#7c3aed" },
-  { value: "BIODIVERSITY", label: "Biodiversity", color: "#059669" },
-  { value: "AWARENESS", label: "Awareness", color: "#db2777" },
-  { value: "OTHER", label: "Other", color: "#64748b" },
+  { value: "TREE_PLANTATION", label: "Tree plantation", color: "#10B981" },
+  { value: "WASTE_COLLECTION", label: "Waste collection", color: "#38BDF8" },
+  { value: "PARK_CLEANING", label: "Park cleaning", color: "#22D3EE" },
+  { value: "RECYCLING", label: "Recycling", color: "#FB923C" },
+  { value: "BIODIVERSITY", label: "Biodiversity", color: "#FB7185" },
+  { value: "AWARENESS", label: "Awareness", color: "#A78BFA" },
+  { value: "OTHER", label: "Other", color: "#F2FBF8" },
 ];
 
 export const questDifficulties: ReadonlyArray<{ value: QuestDifficulty; label: string }> = [
@@ -24,7 +29,7 @@ export const proofTypes: ReadonlyArray<{ value: "PHOTO" | "VIDEO" | "PHOTO_AND_V
 ];
 
 export function categoryMeta(category: QuestCategory): { label: string; color: string } {
-  return questCategories.find((c) => c.value === category) ?? { label: category, color: "#64748b" };
+  return questCategories.find((c) => c.value === category) ?? { label: category, color: "#F2FBF8" };
 }
 
 export function difficultyLabel(difficulty: QuestDifficulty): string {

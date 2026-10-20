@@ -9,7 +9,9 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: ecosphere
     ports:
-      - "5432:5432"
+      # Host 5433 avoids colliding with a locally installed PostgreSQL service.
+      # Containers still reach the database internally at db:5432.
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./database/init:/docker-entrypoint-initdb.d:ro
@@ -45,6 +47,8 @@ services:
       # Local stack is served over plain http, so the refresh cookie must not be Secure.
       COOKIE_SECURE: "false"
       CORS_ORIGIN: http://localhost:8080
+      # Exactly one hop: the bundled nginx web container proxies to api.
+      TRUST_PROXY_HOPS: 1
       AI_SERVICE_URL: http://ai:8000
       AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-dev-ai-token}
       UPLOAD_DIR: /app/uploads
@@ -53,8 +57,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    # Bind to loopback so clients cannot bypass nginx and spoof X-Forwarded-For.
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
     volumes:
       - uploads:/app/uploads
     # Apply migrations before booting (idempotent).
@@ -81,9 +86,15 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    # Local provider credentials live in the AI service's own ignored .env.
+    # Do not set AI_GROQ_API_KEY here: an empty Compose override would mask it.
+    env_file:
+      - path: ./ai-service/.env
+        required: false
     environment:
+      # Production mode rejects the default shared secret at startup.
+      AI_ENVIRONMENT: production
       AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-dev-ai-token}
-      AI_OPENAI_API_KEY: ${AI_OPENAI_API_KEY:-}
       AI_MODEL_PATH: models/yolov8n.pt
 
   web:

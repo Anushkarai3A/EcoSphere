@@ -1,20 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  ArrowLeft,
-  Award,
-  BookOpen,
-  Calendar,
-  FileCheck,
-  FileText,
-  FolderPlus,
-  Link as LinkIcon,
-  Plus,
-  Save,
-  Send,
-  Trash2,
-  Users,
-} from "lucide-react";
+import { ArrowLeft, Link as LinkIcon, Plus, Save, Send, Trash2 } from "lucide-react";
 import { assignmentApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type {
@@ -26,6 +12,10 @@ import type {
   SubmissionType,
 } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { DisplayTitle, MetaRow, SectionHead } from "@/components/gallery";
+import { cn } from "@/lib/utils";
 
 const ASSIGNMENT_TYPES: { label: string; value: AssignmentType }[] = [
   { label: "Written Assignment", value: "WRITTEN" },
@@ -60,6 +50,9 @@ const CATEGORIES: { label: string; value: QuestCategory }[] = [
   { label: "Awareness & Education", value: "AWARENESS" },
   { label: "Other Environmental", value: "OTHER" },
 ];
+
+const fieldClass =
+  "w-full rounded-[6px] border border-frost/40 bg-deep px-3.5 py-2.5 text-sm text-bone shadow-[inset_0_1px_2px_rgba(3,18,26,0.6)] placeholder:text-ash/70 transition-colors focus-visible:border-cyan/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/35";
 
 export function CreateAssignmentPage() {
   const navigate = useNavigate();
@@ -210,79 +203,79 @@ export function CreateAssignmentPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-12">
-      {/* Top Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/app/teacher/assignments")} className="h-9 w-9">
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Create Assignment</h1>
-          <p className="text-sm text-muted-foreground">Configure basic info, schedule, submission rules, rubric, and rewards.</p>
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-5 pb-16 sm:px-10">
+      {/* Hero */}
+      <section className="flex flex-col gap-4 pt-12 animate-gallery-rise">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/app/teacher/assignments")}
+            className="h-9 w-9"
+            aria-label="Back to assignments"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+          </Button>
+          <MetaRow>
+            <span>Teacher workspace</span>
+            <span>{schoolName}</span>
+          </MetaRow>
         </div>
-      </div>
+        <DisplayTitle lines={["CREATE", "ASSIGNMENT"]} />
+        <p className="max-w-xl font-micro text-[11px] leading-[1.6] uppercase text-ash">
+          Configure basic info, schedule, submission rules, rubric, and rewards.
+        </p>
+      </section>
 
       {error && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive font-medium">
+        <p
+          role="alert"
+          className="rounded-[10px] border border-destructive/40 bg-destructive/10 px-4 py-3 font-micro text-[11px] uppercase text-destructive"
+        >
           {error}
-        </div>
+        </p>
       )}
 
       {/* 1. BASIC INFORMATION */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
-        <div className="flex items-center gap-2 border-b border-border pb-3">
-          <FileText className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">1. Basic Information</h2>
-        </div>
-
+      <section className="glass-panel flex flex-col gap-5 rounded-[10px] p-5 sm:p-6">
+        <SectionHead kicker="Section 01" title="Basic information" />
         <div className="space-y-4">
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-              Assignment Title *
-            </label>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="ca-title">Assignment Title *</Label>
+            <Input
+              id="ca-title"
               type="text"
               placeholder="e.g. Plastic Pollution & Ocean Conservation Case Study"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary font-medium"
             />
           </div>
 
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-              Description / Instructions *
-            </label>
+          <div className="space-y-2">
+            <Label htmlFor="ca-desc">Description / Instructions *</Label>
             <textarea
+              id="ca-desc"
               rows={4}
               placeholder="Detail the objectives, requirements, formatting rules, and expected outcomes..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className={cn(fieldClass, "resize-y")}
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-                Subject / Course
-              </label>
-              <input
-                type="text"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-              />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="ca-subject">Subject / Course</Label>
+              <Input id="ca-subject" type="text" value={subject} onChange={(e) => setSubject(e.target.value)} />
             </div>
 
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-                Topic Category
-              </label>
+            <div className="space-y-2">
+              <Label htmlFor="ca-topic">Topic Category</Label>
               <select
+                id="ca-topic"
                 value={topic}
                 onChange={(e) => setTopic(e.target.value as QuestCategory)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                className={cn(fieldClass, "h-10")}
               >
                 {CATEGORIES.map((c) => (
                   <option key={c.value} value={c.value}>
@@ -292,14 +285,13 @@ export function CreateAssignmentPage() {
               </select>
             </div>
 
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-                Assignment Type
-              </label>
+            <div className="space-y-2">
+              <Label htmlFor="ca-type">Assignment Type</Label>
               <select
+                id="ca-type"
                 value={type}
                 onChange={(e) => setType(e.target.value as AssignmentType)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                className={cn(fieldClass, "h-10")}
               >
                 {ASSIGNMENT_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>
@@ -310,234 +302,196 @@ export function CreateAssignmentPage() {
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* 2. ASSIGN TO */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
-        <div className="flex items-center gap-2 border-b border-border pb-3">
-          <Users className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">2. Assign To</h2>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-              Institution (Read-Only)
-            </label>
-            <input
+      <section className="glass-panel flex flex-col gap-5 rounded-[10px] p-5 sm:p-6">
+        <SectionHead kicker="Section 02" title="Assign to" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="ca-institution">Institution (Read-Only)</Label>
+            <Input
+              id="ca-institution"
               type="text"
               readOnly
               value={schoolName}
-              className="w-full rounded-lg border border-border/80 bg-accent/40 px-3.5 py-2 text-sm font-medium text-foreground cursor-not-allowed"
+              className="cursor-not-allowed bg-white/[0.06] text-ash"
             />
-            <p className="text-[11px] text-muted-foreground mt-1">Bound to your verified institution session.</p>
+            <p className="font-micro text-[10px] uppercase text-ash">Bound to your verified institution session.</p>
           </div>
 
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-              Recipient Scope
-            </label>
-            <div className="flex rounded-lg border border-border bg-background p-1 gap-1">
+          <div className="space-y-2">
+            <Label>Recipient Scope</Label>
+            <div className="inline-flex w-full flex-wrap gap-1 rounded-full border border-frost/20 bg-deep/60 p-1">
               <button
                 type="button"
                 onClick={() => setTargetType("CLASS")}
-                className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-colors ${
-                  targetType === "CLASS" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent"
-                }`}
+                className={cn(
+                  "flex-1 rounded-full px-3.5 py-2 font-micro text-[10px] uppercase tracking-[0.06em] transition-colors",
+                  targetType === "CLASS"
+                    ? "bg-emerald/15 text-emerald shadow-[inset_0_0_0_1px_rgba(46,207,143,0.45)]"
+                    : "text-ash hover:text-bone",
+                )}
               >
                 Entire Enrolled Class
               </button>
               <button
                 type="button"
                 onClick={() => setTargetType("STUDENTS")}
-                className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-colors ${
-                  targetType === "STUDENTS" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent"
-                }`}
+                className={cn(
+                  "flex-1 rounded-full px-3.5 py-2 font-micro text-[10px] uppercase tracking-[0.06em] transition-colors",
+                  targetType === "STUDENTS"
+                    ? "bg-emerald/15 text-emerald shadow-[inset_0_0_0_1px_rgba(46,207,143,0.45)]"
+                    : "text-ash hover:text-bone",
+                )}
               >
                 Specific Students
               </button>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* 3. SCHEDULE */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
-        <div className="flex items-center gap-2 border-b border-border pb-3">
-          <Calendar className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">3. Schedule & Deadlines</h2>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-              Start Date & Time
-            </label>
-            <input
-              type="datetime-local"
-              value={startAt}
-              onChange={(e) => setStartAt(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-            />
+      <section className="glass-panel flex flex-col gap-5 rounded-[10px] p-5 sm:p-6">
+        <SectionHead kicker="Section 03" title="Schedule & deadlines" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="ca-start">Start Date & Time</Label>
+            <Input id="ca-start" type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
           </div>
 
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-              Due Date & Time *
-            </label>
-            <input
-              type="datetime-local"
-              value={dueAt}
-              onChange={(e) => setDueAt(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-            />
+          <div className="space-y-2">
+            <Label htmlFor="ca-due">Due Date & Time *</Label>
+            <Input id="ca-due" type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
           </div>
         </div>
 
-        <div className="pt-2 border-t border-border/50 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-t border-frost/15 pt-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <input
               type="checkbox"
               id="allowLate"
               checked={allowLate}
               onChange={(e) => setAllowLate(e.target.checked)}
-              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+              className="h-4 w-4 rounded-[2px] border-frost/40 accent-emerald"
             />
-            <label htmlFor="allowLate" className="text-sm font-medium">
+            <label htmlFor="allowLate" className="font-micro text-[11px] uppercase text-bone">
               Allow Late Submissions (Marked as LATE)
             </label>
           </div>
 
           {allowLate && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Late Deadline:</span>
-              <input
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-micro text-[10px] uppercase text-ash">Late Deadline:</span>
+              <Input
                 type="datetime-local"
                 value={lateDeadline}
                 onChange={(e) => setLateDeadline(e.target.value)}
-                className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-auto"
               />
             </div>
           )}
         </div>
-      </div>
+      </section>
 
       {/* 4. SUBMISSION TYPE */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
-        <div className="flex items-center gap-2 border-b border-border pb-3">
-          <FileCheck className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">4. Submission Format & Limits</h2>
-        </div>
-
+      <section className="glass-panel flex flex-col gap-5 rounded-[10px] p-5 sm:p-6">
+        <SectionHead kicker="Section 04" title="Submission format & limits" />
         <div>
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
-            Allowed Submission Type
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <Label className="mb-3 block">Allowed Submission Type</Label>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
             {SUBMISSION_TYPES.map((st) => (
               <button
                 key={st.value}
                 type="button"
+                aria-pressed={submissionType === st.value}
                 onClick={() => setSubmissionType(st.value)}
-                className={`flex flex-col text-left p-3 rounded-xl border transition-all ${
+                className={cn(
+                  "flex flex-col gap-1 rounded-[10px] border p-3.5 text-left transition-all",
                   submissionType === st.value
-                    ? "border-primary bg-primary/10 ring-1 ring-primary"
-                    : "border-border bg-background hover:border-primary/50"
-                }`}
+                    ? "border-cyan/70 bg-cyan/10 shadow-[0_0_24px_-14px_rgba(34,211,238,0.9)]"
+                    : "border-frost/25 bg-white/[0.03] hover:border-frost/60",
+                )}
               >
-                <span className="text-xs font-bold">{st.label}</span>
-                <span className="text-[11px] text-muted-foreground mt-0.5">{st.desc}</span>
+                <span className="font-micro text-[11px] uppercase text-bone">{st.label}</span>
+                <span className="font-micro text-[10px] leading-[1.5] text-ash">{st.desc}</span>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-              Allowed Extensions (comma separated)
-            </label>
-            <input
+        <div className="grid grid-cols-1 gap-4 border-t border-frost/15 pt-4 sm:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="ca-formats">Allowed Extensions (comma separated)</Label>
+            <Input
+              id="ca-formats"
               type="text"
               value={allowedFormatsStr}
               onChange={(e) => setAllowedFormatsStr(e.target.value)}
               placeholder="pdf, docx, txt"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-              Max File Size (MB)
-            </label>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="ca-maxsize">Max File Size (MB)</Label>
+            <Input
+              id="ca-maxsize"
               type="number"
               min={1}
               max={500}
               value={maxFileSizeMb}
               onChange={(e) => setMaxFileSizeMb(Number(e.target.value))}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-              Max Files Allowed
-            </label>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="ca-maxfiles">Max Files Allowed</Label>
+            <Input
+              id="ca-maxfiles"
               type="number"
               min={1}
               max={20}
               value={maxFiles}
               onChange={(e) => setMaxFiles(Number(e.target.value))}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
         </div>
-      </div>
+      </section>
 
       {/* 5. EVALUATION & RUBRIC */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
-        <div className="flex items-center gap-2 border-b border-border pb-3">
-          <BookOpen className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">5. Evaluation & Rubric</h2>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-              Maximum Marks *
-            </label>
-            <input
+      <section className="glass-panel flex flex-col gap-5 rounded-[10px] p-5 sm:p-6">
+        <SectionHead kicker="Section 05" title="Evaluation & rubric" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+          <div className="space-y-2">
+            <Label htmlFor="ca-maxmarks">Maximum Marks *</Label>
+            <Input
+              id="ca-maxmarks"
               type="number"
               min={1}
               value={maxMarks}
               onChange={(e) => setMaxMarks(Number(e.target.value))}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-bold text-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-              Passing Marks
-            </label>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="ca-passmarks">Passing Marks</Label>
+            <Input
+              id="ca-passmarks"
               type="number"
               min={0}
               value={passMarks}
               onChange={(e) => setPassMarks(Number(e.target.value))}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-              Grading Type
-            </label>
+          <div className="space-y-2">
+            <Label htmlFor="ca-grading">Grading Type</Label>
             <select
+              id="ca-grading"
               value={gradingType}
               onChange={(e) => setGradingType(e.target.value as GradingType)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              className={cn(fieldClass, "h-10")}
             >
               <option value="MARKS">Marks (e.g. 85/100)</option>
               <option value="PERCENTAGE">Percentage (%)</option>
@@ -545,62 +499,65 @@ export function CreateAssignmentPage() {
             </select>
           </div>
 
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-              Max Attempts
-            </label>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="ca-attempts">Max Attempts</Label>
+            <Input
+              id="ca-attempts"
               type="number"
               min={1}
               max={10}
               value={maxAttempts}
               onChange={(e) => setMaxAttempts(Number(e.target.value))}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
         </div>
 
         {/* Rubric Builder */}
-        <div className="pt-4 border-t border-border/60 space-y-3">
-          <div className="flex items-center justify-between">
+        <div className="space-y-3 border-t border-frost/15 pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-semibold">Evaluation Rubric</h3>
-              <p className="text-xs text-muted-foreground">
-                Total Rubric Marks: <span className="font-bold text-primary">{totalRubricMarks}</span> / {maxMarks}
+              <h3 className="font-display text-[22px] font-medium leading-tight text-bone">Evaluation Rubric</h3>
+              <p className="mt-1 font-micro text-[10px] uppercase text-ash">
+                Total rubric marks{" "}
+                <span className="font-title text-[14px] font-semibold tracking-normal text-gold">{totalRubricMarks}</span>{" "}
+                / {maxMarks}
               </p>
             </div>
             <Button type="button" variant="outline" size="sm" onClick={addRubricRow} className="gap-1.5">
-              <Plus className="h-3.5 w-3.5" />
+              <Plus className="h-3.5 w-3.5" aria-hidden />
               Add Criterion
             </Button>
           </div>
 
           <div className="space-y-2">
             {rubricCriteria.map((c, i) => (
-              <div key={i} className="flex items-start gap-2 rounded-xl border border-border bg-background p-3">
+              <div
+                key={i}
+                className="flex items-start gap-2 rounded-[10px] border border-frost/20 bg-white/[0.03] p-3"
+              >
                 <div className="flex-1 space-y-2">
-                  <div className="flex gap-2">
-                    <input
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Input
                       type="text"
                       placeholder="Criterion Name (e.g. Research Depth)"
                       value={c.criterion}
                       onChange={(e) => updateRubricRow(i, "criterion", e.target.value)}
-                      className="flex-1 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="flex-1"
                     />
-                    <input
+                    <Input
                       type="number"
                       placeholder="Marks"
                       value={c.maxMarks}
                       onChange={(e) => updateRubricRow(i, "maxMarks", Number(e.target.value))}
-                      className="w-24 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-bold text-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full shrink-0 sm:w-24"
                     />
                   </div>
-                  <input
+                  <Input
                     type="text"
                     placeholder="Description / Requirements for full marks..."
                     value={c.description || ""}
                     onChange={(e) => updateRubricRow(i, "description", e.target.value)}
-                    className="w-full rounded-md border border-border bg-card px-3 py-1 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="text-ash"
                   />
                 </div>
                 <Button
@@ -608,126 +565,110 @@ export function CreateAssignmentPage() {
                   variant="ghost"
                   size="icon"
                   onClick={() => removeRubricRow(i)}
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive mt-1"
+                  className="mt-1 h-8 w-8 text-ash hover:text-destructive"
+                  aria-label="Remove criterion"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4" aria-hidden />
                 </Button>
               </div>
             ))}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* 6. GAMIFICATION */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
-        <div className="flex items-center gap-2 border-b border-border pb-3">
-          <Award className="h-5 w-5 text-emerald-500" />
-          <h2 className="text-lg font-semibold">6. Gamification & XP Reward</h2>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-              XP Reward *
-            </label>
+      <section className="glass-panel flex flex-col gap-5 rounded-[10px] p-5 sm:p-6">
+        <SectionHead kicker="Section 06" title="Gamification & XP reward" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="ca-xp">XP Reward *</Label>
             <div className="relative">
-              <input
+              <Input
+                id="ca-xp"
                 type="number"
                 min={0}
                 max={10000}
                 value={xpReward}
                 onChange={(e) => setXpReward(Number(e.target.value))}
-                className="w-full rounded-lg border border-border bg-background px-3.5 py-2 text-sm font-bold text-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="pr-14"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-500">XP</span>
+              <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 font-title text-[13px] font-semibold text-gold">
+                XP
+              </span>
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1">
+            <p className="font-micro text-[10px] uppercase leading-[1.6] text-ash">
               Awarded once upon passing grade. Idempotency guarantees no duplicate XP on resubmissions.
             </p>
           </div>
 
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-              Environmental Category
-            </label>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="ca-category">Environmental Category</Label>
+            <Input
+              id="ca-category"
               type="text"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               placeholder="e.g. Waste Management, Climate Action"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
         </div>
-      </div>
+      </section>
 
       {/* 7. LEARNING RESOURCES */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
-        <div className="flex items-center gap-2 border-b border-border pb-3">
-          <FolderPlus className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">7. Attach Learning Resources</h2>
-        </div>
-
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-              Add External Reference Links / Videos
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="url"
-                placeholder="https://..."
-                value={externalUrlInput}
-                onChange={(e) => setExternalUrlInput(e.target.value)}
-                className="flex-1 rounded-lg border border-border bg-background px-3.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              <Button type="button" variant="outline" size="sm" onClick={addExternalLink} className="gap-1">
-                <LinkIcon className="h-3.5 w-3.5" />
-                Add Link
-              </Button>
-            </div>
-
-            {externalUrls.length > 0 && (
-              <div className="flex flex-wrap gap-2 pt-2">
-                {externalUrls.map((url, idx) => (
-                  <span key={idx} className="inline-flex items-center gap-1.5 rounded-md bg-accent px-2.5 py-1 text-xs font-medium">
-                    <LinkIcon className="h-3 w-3 text-primary" />
-                    {url}
-                    <button
-                      type="button"
-                      onClick={() => setExternalUrls(externalUrls.filter((_, i) => i !== idx))}
-                      className="text-muted-foreground hover:text-destructive ml-1"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
+      <section className="glass-panel flex flex-col gap-5 rounded-[10px] p-5 sm:p-6">
+        <SectionHead kicker="Section 07" title="Attach learning resources" />
+        <div className="space-y-2">
+          <Label htmlFor="ca-link">Add External Reference Links / Videos</Label>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              id="ca-link"
+              type="url"
+              placeholder="https://..."
+              value={externalUrlInput}
+              onChange={(e) => setExternalUrlInput(e.target.value)}
+              className="flex-1"
+            />
+            <Button type="button" variant="outline" size="sm" onClick={addExternalLink} className="gap-1 sm:self-start">
+              <LinkIcon className="h-3.5 w-3.5" aria-hidden />
+              Add Link
+            </Button>
           </div>
+
+          {externalUrls.length > 0 ? (
+            <div className="flex flex-wrap gap-2 pt-2">
+              {externalUrls.map((url, idx) => (
+                <span
+                  key={idx}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-frost/30 bg-white/[0.06] px-2.5 py-1 font-micro text-[10px] uppercase text-bone"
+                >
+                  <LinkIcon className="h-3 w-3" aria-hidden />
+                  <span className="max-w-[240px] truncate">{url}</span>
+                  <button
+                    type="button"
+                    onClick={() => setExternalUrls(externalUrls.filter((_, i) => i !== idx))}
+                    className="ml-1 text-ash transition-colors hover:text-destructive"
+                    aria-label="Remove link"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="font-micro text-[10px] uppercase text-ash">No reference links attached yet.</p>
+          )}
         </div>
-      </div>
+      </section>
 
       {/* 8. PUBLICATION & ACTIONS */}
-      <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
-        <Button
-          type="button"
-          variant="outline"
-          disabled={saving}
-          onClick={() => handleSubmit(false)}
-          className="gap-2"
-        >
-          <Save className="h-4 w-4" />
+      <div className="glass-panel flex flex-col-reverse items-stretch gap-3 rounded-[10px] p-5 sm:flex-row sm:items-center sm:justify-end">
+        <Button type="button" variant="outline" disabled={saving} onClick={() => handleSubmit(false)} className="gap-2">
+          <Save className="h-4 w-4" aria-hidden />
           Save as Draft
         </Button>
 
-        <Button
-          type="button"
-          disabled={saving}
-          onClick={() => handleSubmit(true)}
-          className="gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-md"
-        >
-          <Send className="h-4 w-4" />
+        <Button type="button" disabled={saving} onClick={() => handleSubmit(true)} className="gap-2">
+          <Send className="h-4 w-4" aria-hidden />
           {saving ? "Publishing..." : "Publish Assignment"}
         </Button>
       </div>

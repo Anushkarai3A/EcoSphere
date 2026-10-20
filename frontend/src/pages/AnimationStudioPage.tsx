@@ -1,11 +1,8 @@
 import {
   AlertCircle,
   CheckCircle2,
-  Clapperboard,
   Download,
   Film,
-  History,
-  Leaf,
   Loader2,
   Maximize2,
   Pause,
@@ -22,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DisplayTitle, MetaRow, Rule } from "@/components/gallery";
 import { ApiError, studentApi } from "@/lib/api";
 import { setHeroVisible } from "@/lib/filmKit";
 import { styleDefFor } from "@/lib/filmStyles";
@@ -763,45 +761,43 @@ export function AnimationStudioPage() {
       {/* Hidden high-res canvas used for offscreen frame rendering & stream capture */}
       <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
 
-      <section className="flex flex-col gap-1">
-        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-          <Film className="h-6 w-6 text-emerald-500" aria-hidden />
-          AI Animation Studio
-        </h1>
-        <p className="text-sm text-muted-foreground">
+      <section className="flex flex-col gap-4 pt-12 animate-gallery-rise">
+        <MetaRow>
+          <span>AI video studio</span>
+          <span>Story films + voiceover</span>
+        </MetaRow>
+        <DisplayTitle lines={["ANIMATION", "STUDIO"]} />
+        <p className="max-w-xl font-micro text-[11px] leading-[1.6] uppercase text-ash">
           Turn your environmental questions and ideas into real animated educational videos.
         </p>
       </section>
 
+      <Rule />
+
       <div className="grid gap-6 lg:grid-cols-12">
         {/* Left column: Chatbot & Generation Settings */}
         <div className="lg:col-span-5 flex flex-col gap-6">
-          <Card className="flex min-h-[580px] flex-col shadow-sm border-border">
-            <CardHeader className="pb-3 border-b border-border/50 bg-muted/20">
-              <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                <Sparkles className="h-4 w-4 text-emerald-500" aria-hidden />
-                Eco Animator AI
-              </CardTitle>
+          <Card className="flex min-h-[580px] flex-col">
+            <CardHeader className="pb-3 border-b border-frost/15">
+              <CardTitle className="text-white">Eco Animator AI</CardTitle>
               <CardDescription>Creates educational animated videos about ecology.</CardDescription>
             </CardHeader>
 
             <CardContent className="flex min-h-0 flex-1 flex-col gap-3 p-4">
               {/* Chat Message Stream */}
-              <div className="flex max-h-[300px] min-h-[220px] flex-1 flex-col gap-2.5 overflow-y-auto rounded-lg border border-border/60 bg-muted/10 p-3.5">
+              <div className="flex max-h-[300px] min-h-[220px] flex-1 flex-col gap-2.5 overflow-y-auto rounded-[10px] border border-frost/15 p-3.5">
                 {messages.map((m) => (
                   <div key={m.id} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
                     <div
                       className={cn(
-                        "max-w-[88%] rounded-2xl px-3.5 py-2.5 text-sm shadow-xs",
+                        "max-w-[88%] rounded-[20px] px-3.5 py-2.5 text-sm",
                         m.role === "user"
-                          ? "bg-emerald-600 text-white font-medium"
-                          : "border border-border/70 bg-card text-foreground",
+                          ? "bg-charcoal text-white"
+                          : "border border-frost/25 bg-white/[0.06] text-white",
                       )}
                     >
                       {m.role === "assistant" && (
-                        <p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                          <Leaf className="h-3.5 w-3.5" aria-hidden /> Eco Animator
-                        </p>
+                        <p className="mb-1 font-micro text-[10px] uppercase text-ash">Eco Animator</p>
                       )}
                       <p className="whitespace-pre-wrap leading-relaxed">{m.text}</p>
                     </div>
@@ -810,8 +806,8 @@ export function AnimationStudioPage() {
 
                 {generating && (
                   <div className="flex justify-start">
-                    <div className="flex items-center gap-2.5 rounded-2xl border border-border bg-card px-3.5 py-2.5 text-xs text-muted-foreground shadow-xs">
-                      <Loader2 className="h-4 w-4 animate-spin text-emerald-500" aria-hidden />
+                    <div className="flex items-center gap-2.5 rounded-[20px] border border-frost/25 bg-white/[0.06] px-3.5 py-2.5 font-micro text-[11px] uppercase text-ash">
+                      <Loader2 className="h-4 w-4 animate-spin text-white" aria-hidden />
                       <span>
                         {pipelineStep === "classifying" && "Evaluating environmental context…"}
                         {pipelineStep === "storyboard" && "Groq AI writing your story…"}
@@ -836,7 +832,7 @@ export function AnimationStudioPage() {
                     key={q}
                     type="button"
                     onClick={() => setPrompt(q)}
-                    className="rounded-full border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-all hover:border-emerald-500/50 hover:text-emerald-600 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20"
+                    className="rounded-[2px] border border-frost/30 bg-white/[0.06] px-2 py-0.5 font-micro text-[10px] uppercase text-white transition-colors hover:border-frost"
                   >
                     {q}
                   </button>
@@ -844,13 +840,13 @@ export function AnimationStudioPage() {
               </div>
 
               {/* Prompt & Config Form */}
-              <p className="text-[11px] text-muted-foreground" aria-live="polite">
+              <p className="font-micro text-[11px] leading-[1.6] uppercase text-ash" aria-live="polite">
                 {STYLE_OPTIONS.find((o) => o.value === style)?.blurb}
               </p>
               <form onSubmit={onSend} className="flex flex-col gap-3 pt-1">
                 <div className="grid grid-cols-3 gap-2">
                   <div className="col-span-1 space-y-1">
-                    <Label htmlFor="anim-topic" className="text-xs text-muted-foreground">Topic</Label>
+                    <Label htmlFor="anim-topic">Topic</Label>
                     <Input
                       id="anim-topic"
                       value={topic}
@@ -861,12 +857,12 @@ export function AnimationStudioPage() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="anim-style" className="text-xs text-muted-foreground">Style</Label>
+                    <Label htmlFor="anim-style">Style</Label>
                     <select
                       id="anim-style"
                       value={style}
                       onChange={(e) => setStyle(e.target.value as GenerateAnimationInput["style"])}
-                      className="flex h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                      className="flex h-8 w-full rounded-[2px] border border-frost/30 bg-void px-2 font-micro text-[10px] uppercase text-white"
                     >
                       {STYLE_OPTIONS.map((o) => (
                         <option key={o.value} value={o.value}>{o.label}</option>
@@ -874,12 +870,12 @@ export function AnimationStudioPage() {
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="anim-duration" className="text-xs text-muted-foreground">Duration</Label>
+                    <Label htmlFor="anim-duration">Duration</Label>
                     <select
                       id="anim-duration"
                       value={duration}
                       onChange={(e) => setDuration(Number(e.target.value))}
-                      className="flex h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                      className="flex h-8 w-full rounded-[2px] border border-frost/30 bg-void px-2 font-micro text-[10px] uppercase text-white"
                     >
                       {DURATION_OPTIONS.map((d) => (
                         <option key={d} value={d}>{d}s</option>
@@ -900,7 +896,7 @@ export function AnimationStudioPage() {
                   <Button
                     type="submit"
                     disabled={generating || prompt.trim().length === 0}
-                    className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
+                    className="shrink-0"
                   >
                     {generating ? (
                       <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -915,7 +911,7 @@ export function AnimationStudioPage() {
               </form>
 
               {error && (
-                <div role="alert" className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                <div role="alert" className="flex items-center gap-2 border border-destructive/40 px-3 py-2 font-micro text-[11px] uppercase text-destructive">
                   <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
                   <span>{error}</span>
                 </div>
@@ -927,16 +923,15 @@ export function AnimationStudioPage() {
         {/* Right column: Actual HTML5 Video Player + Progress Stepper + Library */}
         <div className="lg:col-span-7 flex flex-col gap-6">
           {/* Main Video Screen Card */}
-          <Card className="overflow-hidden border-border shadow-sm">
-            <CardHeader className="pb-3 border-b border-border/50 bg-muted/20">
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                  <Clapperboard className="h-4 w-4 text-emerald-500" aria-hidden />
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-3 border-b border-frost/15">
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="text-white">
                   {current?.topic || "Animated Video Player"}
                 </CardTitle>
                 {current && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-[2px] border border-frost/30 bg-white/[0.06] px-2 py-0.5 font-micro text-[10px] uppercase text-white">
+                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
                     {current.videoUrl ? "Generated Video" : "Ready"}
                   </span>
                 )}
@@ -951,41 +946,41 @@ export function AnimationStudioPage() {
             <CardContent className="p-4 flex flex-col gap-4">
               {/* Stepper active during generation */}
               {generating && (
-                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 flex flex-col gap-3">
-                  <div className="flex items-center justify-between text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                <div className="rounded-[10px] border border-frost/30 bg-white/[0.06] p-4 flex flex-col gap-3">
+                  <div className="flex items-center justify-between font-micro text-[11px] uppercase text-white">
                     <span className="flex items-center gap-1.5">
-                      <Sparkles className="h-4 w-4 animate-spin text-emerald-500" />
+                      <Sparkles className="h-4 w-4 animate-spin text-white" aria-hidden />
                       AI Video Pipeline Active
                     </span>
                     <span className="capitalize">{pipelineStep}</span>
                   </div>
 
                   <div className="grid grid-cols-5 gap-2 pt-1">
-                    <div className={cn("flex flex-col gap-1 rounded-md p-2 text-center text-[11px]", pipelineStep === "classifying" ? "bg-emerald-500/20 font-bold" : "bg-muted/40 text-muted-foreground")}>
+                    <div className={cn("flex flex-col gap-1 rounded-[2px] border p-2 text-center font-micro text-[11px] uppercase", pipelineStep === "classifying" ? "border-frost/40 bg-white/[0.06] text-white" : "border-frost/15 text-ash")}>
                       <span>1. Topic</span>
-                      <span className="text-[9px]">Validation</span>
+                      <span className="text-[10px] text-ash">Validation</span>
                     </div>
-                    <div className={cn("flex flex-col gap-1 rounded-md p-2 text-center text-[11px]", pipelineStep === "storyboard" ? "bg-emerald-500/20 font-bold" : "bg-muted/40 text-muted-foreground")}>
+                    <div className={cn("flex flex-col gap-1 rounded-[2px] border p-2 text-center font-micro text-[11px] uppercase", pipelineStep === "storyboard" ? "border-frost/40 bg-white/[0.06] text-white" : "border-frost/15 text-ash")}>
                       <span>2. Story</span>
-                      <span className="text-[9px]">Groq LLM</span>
+                      <span className="text-[10px] text-ash">Groq LLM</span>
                     </div>
-                    <div className={cn("flex flex-col gap-1 rounded-md p-2 text-center text-[11px]", pipelineStep === "voice" ? "bg-emerald-500/20 font-bold" : "bg-muted/40 text-muted-foreground")}>
+                    <div className={cn("flex flex-col gap-1 rounded-[2px] border p-2 text-center font-micro text-[11px] uppercase", pipelineStep === "voice" ? "border-frost/40 bg-white/[0.06] text-white" : "border-frost/15 text-ash")}>
                       <span>3. Voice</span>
-                      <span className="text-[9px]">Narration</span>
+                      <span className="text-[10px] text-ash">Narration</span>
                     </div>
-                    <div className={cn("flex flex-col gap-1 rounded-md p-2 text-center text-[11px]", pipelineStep === "rendering" || pipelineStep === "composing" ? "bg-emerald-500/20 font-bold" : "bg-muted/40 text-muted-foreground")}>
+                    <div className={cn("flex flex-col gap-1 rounded-[2px] border p-2 text-center font-micro text-[11px] uppercase", pipelineStep === "rendering" || pipelineStep === "composing" ? "border-frost/40 bg-white/[0.06] text-white" : "border-frost/15 text-ash")}>
                       <span>4. Filming</span>
-                      <span className="text-[9px]">
+                      <span className="text-[10px] text-ash">
                         {renderProgress ? `${renderProgress.elapsed}s / ${renderProgress.total}s` : "Live render"}
                       </span>
                     </div>
-                    <div className={cn("flex flex-col gap-1 rounded-md p-2 text-center text-[11px]", pipelineStep === "uploading" ? "bg-emerald-500/20 font-bold" : "bg-muted/40 text-muted-foreground")}>
+                    <div className={cn("flex flex-col gap-1 rounded-[2px] border p-2 text-center font-micro text-[11px] uppercase", pipelineStep === "uploading" ? "border-frost/40 bg-white/[0.06] text-white" : "border-frost/15 text-ash")}>
                       <span>5. Video</span>
-                      <span className="text-[9px]">WebM File</span>
+                      <span className="text-[10px] text-ash">WebM File</span>
                     </div>
                   </div>
                   {pipelineStep === "rendering" && (
-                    <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                    <p className="font-micro text-[11px] leading-[1.6] uppercase text-ash">
                       Recording your video in real time — please keep this tab visible until rendering finishes.
                     </p>
                   )}
@@ -993,7 +988,7 @@ export function AnimationStudioPage() {
               )}
 
               {/* Video Player Display Container */}
-              <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-slate-950 border border-slate-800 shadow-inner flex items-center justify-center">
+              <div className="relative aspect-video w-full overflow-hidden rounded-[10px] bg-void border border-frost/25 flex items-center justify-center">
                 {current?.videoUrl ? (
                   <video
                     ref={videoRef}
@@ -1013,13 +1008,13 @@ export function AnimationStudioPage() {
                     preload="metadata"
                   />
                 ) : (
-                  <div className="flex flex-col items-center gap-3 p-6 text-center text-muted-foreground">
-                    <div className="rounded-full bg-slate-900 p-4 border border-slate-800">
-                      <Film className="h-8 w-8 text-slate-600" aria-hidden />
+                  <div className="flex flex-col items-center gap-3 p-6 text-center">
+                    <div className="rounded-[2px] bg-void p-4 border border-frost/25">
+                      <Film className="h-8 w-8 text-ash" aria-hidden />
                     </div>
-                    <div>
-                      <p className="font-medium text-slate-300">No animation selected</p>
-                      <p className="text-xs text-slate-500 mt-1">
+                    <div className="flex flex-col gap-1.5">
+                      <p className="font-micro text-[11px] uppercase text-ash">No animation selected</p>
+                      <p className="font-micro text-[11px] leading-[1.6] uppercase text-ash">
                         Use the chat to create your video. The AI will render moving visuals and characters.
                       </p>
                     </div>
@@ -1029,17 +1024,17 @@ export function AnimationStudioPage() {
 
               {/* Video load failure */}
               {videoError && current?.videoUrl && (
-                <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                <p role="alert" className="border border-destructive/40 px-3 py-2 font-micro text-[11px] uppercase text-destructive">
                   {videoError}
                 </p>
               )}
 
               {/* Video Controls Bar */}
               {current?.videoUrl && !videoError && (
-                <div className="flex flex-col gap-2 rounded-xl bg-muted/30 border border-border/60 p-3">
+                <div className="flex flex-col gap-2 rounded-[10px] border border-frost/15 p-3">
                   {/* Timeline Scrubber (percentage only from finite metadata) */}
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono text-muted-foreground w-12 text-right">
+                    <span className="font-micro text-[11px] text-ash w-12 text-right">
                       {formatTime(currentTime)}
                     </span>
                     <input
@@ -1051,9 +1046,9 @@ export function AnimationStudioPage() {
                       onChange={(e) => handleSeek(parseFloat(e.target.value))}
                       disabled={finiteDuration === 0}
                       aria-label="Seek"
-                      className="h-1.5 flex-1 cursor-pointer appearance-none rounded-lg bg-border accent-emerald-500 disabled:cursor-wait"
+                      className="h-1.5 flex-1 cursor-pointer appearance-none rounded-[10px] bg-frost/25 accent-white disabled:cursor-wait"
                     />
-                    <span className="text-xs font-mono text-muted-foreground w-12">
+                    <span className="font-micro text-[11px] text-ash w-12">
                       {formatTime(finiteDuration)}
                     </span>
                   </div>
@@ -1065,7 +1060,6 @@ export function AnimationStudioPage() {
                         size="sm"
                         variant="default"
                         onClick={togglePlay}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 px-3"
                       >
                         {isPlaying ? (
                           <Pause className="h-4 w-4 mr-1.5" />
@@ -1079,7 +1073,6 @@ export function AnimationStudioPage() {
                         size="sm"
                         variant="outline"
                         onClick={() => handleSeek(0)}
-                        className="h-8 px-2.5 text-xs"
                       >
                         <RotateCcw className="h-3.5 w-3.5 mr-1" />
                         Restart
@@ -1089,7 +1082,7 @@ export function AnimationStudioPage() {
                         size="sm"
                         variant="ghost"
                         onClick={toggleMute}
-                        className="h-8 px-2 text-muted-foreground"
+                        className="text-ash"
                       >
                         {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                       </Button>
@@ -1101,7 +1094,7 @@ export function AnimationStudioPage() {
                         download={`ecosphere_${current.topic?.toLowerCase().replace(/\s+/g, "_") || "animation"}.webm`}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-accent h-8"
+                        className="inline-flex h-8 items-center gap-1 rounded-[2px] border border-frost/40 bg-void px-2.5 py-1 font-micro text-[10px] uppercase text-white transition-colors hover:bg-white/[0.06]"
                       >
                         <Download className="h-3.5 w-3.5" />
                         Download
@@ -1111,7 +1104,7 @@ export function AnimationStudioPage() {
                         size="sm"
                         variant="ghost"
                         onClick={toggleFullscreen}
-                        className="h-8 px-2 text-muted-foreground"
+                        className="text-ash"
                       >
                         <Maximize2 className="h-4 w-4" />
                       </Button>
@@ -1126,7 +1119,7 @@ export function AnimationStudioPage() {
                   <button
                     type="button"
                     onClick={() => setShowStoryboard((v) => !v)}
-                    className="self-start text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
+                    className="self-start font-micro text-[10px] uppercase tracking-[-0.02em] text-ash hover:text-white"
                     aria-expanded={showStoryboard}
                   >
                     {showStoryboard ? "Hide story" : `View story (${current.scenes.length} beats)`}
@@ -1139,15 +1132,15 @@ export function AnimationStudioPage() {
                         return (
                           <div
                             key={sc.sceneNumber || sc.scene_number || i}
-                            className="rounded-lg border border-border/70 bg-card p-3 flex flex-col gap-1 text-xs shadow-2xs"
+                            className="rounded-[10px] border border-frost/15 bg-void p-3 flex flex-col gap-1"
                           >
-                            <div className="flex items-center justify-between text-muted-foreground">
-                              <span className="font-semibold text-foreground">
+                            <div className="flex items-center justify-between gap-2 font-micro text-[10px] uppercase text-ash">
+                              <span className="font-display text-[22px] font-normal normal-case leading-none text-white">
                                 {beatTitle}
                               </span>
-                              <span>{sc.duration}s</span>
+                              <span className="shrink-0">{sc.duration}s</span>
                             </div>
-                            <p className="text-muted-foreground leading-snug line-clamp-2">
+                            <p className="text-xs text-ash leading-snug line-clamp-2">
                               {sc.narration || sc.dialogue || sc.visualDescription}
                             </p>
                           </div>
@@ -1160,22 +1153,21 @@ export function AnimationStudioPage() {
             </CardContent>
           </Card>
 
+          <Rule />
+
           {/* My Generated Videos Library */}
-          <Card className="border-border shadow-sm">
-            <CardHeader className="pb-3 border-b border-border/50 bg-muted/20">
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                  <History className="h-4 w-4 text-emerald-500" aria-hidden />
-                  My Videos Library
-                </CardTitle>
-                <span className="text-xs text-muted-foreground">
+          <Card>
+            <CardHeader className="pb-3 border-b border-frost/15">
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="text-white">My Videos Library</CardTitle>
+                <span className="shrink-0 font-micro text-[10px] uppercase text-ash">
                   {history.length} {history.length === 1 ? "video" : "videos"} saved
                 </span>
               </div>
             </CardHeader>
             <CardContent className="p-4">
               {history.length === 0 ? (
-                <p className="text-xs text-muted-foreground py-4 text-center">
+                <p className="py-4 text-center font-micro text-[11px] uppercase text-ash">
                   No generated animations saved yet. Create your first video above!
                 </p>
               ) : (
@@ -1185,11 +1177,11 @@ export function AnimationStudioPage() {
                       key={item.id}
                       onClick={() => item.videoUrl && setCurrent(item)}
                       className={cn(
-                        "group flex items-center justify-between gap-2.5 rounded-lg border p-3 transition-all",
+                        "group flex items-center justify-between gap-2.5 rounded-[10px] border p-3 transition-colors",
                         item.videoUrl ? "cursor-pointer" : "opacity-80",
                         current?.id === item.id
-                          ? "border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-xs"
-                          : "border-border hover:border-emerald-500/40 bg-card",
+                          ? "border-frost/40 bg-white/[0.06]"
+                          : "border-frost/15 bg-void hover:border-frost/50",
                       )}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -1197,24 +1189,24 @@ export function AnimationStudioPage() {
                           <img
                             src={item.thumbnailUrl}
                             alt=""
-                            className="h-10 w-16 shrink-0 rounded-md border border-border object-cover"
+                            className="h-10 w-16 shrink-0 rounded-[2px] border border-frost/25 object-cover"
                             loading="lazy"
                           />
                         ) : (
-                          <div className="rounded-md bg-emerald-500/10 p-2 text-emerald-600 shrink-0">
+                          <div className="rounded-[2px] bg-white/[0.06] p-2 text-white shrink-0">
                             <Film className="h-4 w-4" />
                           </div>
                         )}
                         <div className="min-w-0">
-                          <p className="text-xs font-semibold truncate text-foreground">
+                          <p className="font-display text-[22px] font-normal leading-none text-white truncate">
                             {item.topic || item.prompt.slice(0, 30)}
                           </p>
-                          <p className="text-[11px] text-muted-foreground truncate">
+                          <p className="mt-2 font-micro text-[10px] uppercase text-ash truncate">
                             {item.durationSeconds}s • {new Date(item.createdAt).toLocaleDateString()}
                             {item.status === "FAILED" ? " • Failed" : item.videoUrl ? "" : " • Processing"}
                           </p>
                           {item.status === "FAILED" && item.errorMessage && (
-                            <p className="text-[11px] text-destructive truncate">{item.errorMessage}</p>
+                            <p className="mt-1 font-micro text-[10px] uppercase text-destructive truncate">{item.errorMessage}</p>
                           )}
                         </div>
                       </div>
@@ -1225,7 +1217,7 @@ export function AnimationStudioPage() {
                           variant="ghost"
                           onClick={(e) => handleDelete(item.id, e)}
                           aria-label="Delete video"
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="h-7 w-7 text-ash hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>

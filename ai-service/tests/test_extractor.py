@@ -111,3 +111,14 @@ def test_extract_rejects_empty_document() -> None:
     content = _build_docx("   ")
     with pytest.raises(ExtractionError, match="No readable text"):
         extract_text("empty.docx", content, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+def test_extract_rejects_empty_pdf() -> None:
+    content = _build_pdf("   ")
+    with pytest.raises(ExtractionError, match="No readable text"):
+        extract_text("empty.pdf", content, "application/pdf")
+
+
+def test_extract_rejects_corrupt_pdf() -> None:
+    with pytest.raises(ExtractionError, match="PDF could not be parsed"):
+        extract_text("corrupt.pdf", b"%PDF-1.4\nnot a valid pdf", "application/pdf")

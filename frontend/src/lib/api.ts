@@ -62,6 +62,58 @@ export class ApiError extends Error {
   }
 }
 
+/** Render an API failure without leaking raw responses or stack traces. */
+export function formatApiError(err: unknown, fallback = "Something went wrong. Please try again."): string {
+  if (!(err instanceof ApiError)) {
+    return err instanceof Error && err.message ? err.message : fallback;
+  }
+  if (err.status === 422 && err.details) {
+    const fields = Object.entries(err.details)
+      .flatMap(([field, value]) =>
+        Array.isArray(value) ? value.map((message) => `${field}: ${String(message)}`) : [`${field}: ${String(value)}`],
+      )
+      .slice(0, 3);
+    if (fields.length > 0) return `${err.message} (${fields.join("; ")})`;
+  }
+  return err.message;
+}
+
+function fallbackError(status: number): ApiErrorBody["error"] {
+  const messages: Record<number, string> = {
+    400: "The request was not accepted. Check the submitted values and try again.",
+    401: "Your session has expired. Please sign in again.",
+    403: "You do not have permission to perform this action.",
+    404: "The requested resource was not found.",
+    409: "The request conflicts with the current state. Refresh and try again.",
+    413: "The uploaded file is too large.",
+    422: "The request could not be validated. Check the submitted values.",
+    429: "Too many requests. Please wait a moment and try again.",
+    502: "The AI service returned an invalid response. Please retry.",
+    503: "The AI service is not configured or is temporarily unavailable.",
+    504: "The AI service took too long to respond. Please retry.",
+  };
+  return {
+    code: `HTTP_${status}`,
+    message: messages[status] ?? `The server could not complete the request (HTTP ${status}).`,
+  };
+}
+
+function transportError(err: unknown): ApiError {
+  const aborted =
+    (err instanceof DOMException && err.name === "AbortError") ||
+    (err instanceof Error && err.name === "AbortError");
+  if (aborted) {
+    return new ApiError(0, {
+      code: "REQUEST_TIMEOUT",
+      message: "The request timed out before the server responded. Please retry.",
+    });
+  }
+  return new ApiError(0, {
+    code: "NETWORK_ERROR",
+    message: "Unable to reach the Ecosphere server. Check that the backend is running, then retry.",
+  });
+}
+
 /** Fired when the refresh endpoint rejects the stored session (expired/revoked). */
 type SessionExpiredHandler = () => void;
 
@@ -112,12 +164,26 @@ async function refreshAccessToken(): Promise<string | null> {
 
 async function parseResponse<T>(res: Response): Promise<T> {
   if (res.status === 204) return undefined as T;
-  const body = (await res.json().catch(() => null)) as T | ApiErrorBody | null;
+
+  const raw = await res.text().catch(() => "");
+  let body: unknown = null;
+  if (raw) {
+    try {
+      body = JSON.parse(raw);
+    } catch {
+      body = null;
+    }
+  }
+
   if (!res.ok) {
-    const error =
-      (body as ApiErrorBody | null)?.error ??
-      { code: "UNKNOWN", message: `Request failed with status ${res.status}` };
-    throw new ApiError(res.status, error);
+    const envelope = (body as ApiErrorBody | null)?.error;
+    throw new ApiError(res.status, envelope ?? fallbackError(res.status));
+  }
+  if (body === null) {
+    throw new ApiError(502, {
+      code: "INVALID_RESPONSE",
+      message: "The server returned an unreadable response. Please retry.",
+    });
   }
   return body as T;
 }
@@ -131,8 +197,13 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     headers.set("Authorization", `Bearer ${accessToken}`);
   }
 
-  const request = (): Promise<Response> =>
-    fetch(`${API_BASE}${path}`, { ...init, headers, credentials: "include" });
+  const request = async (): Promise<Response> => {
+    try {
+      return await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: "include" });
+    } catch (err) {
+      throw transportError(err);
+    }
+  };
 
   let res = await request();
 

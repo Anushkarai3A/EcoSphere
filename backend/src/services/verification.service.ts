@@ -1,20 +1,47 @@
 import { Queue } from "bullmq";
-import { Prisma, type CheckStatus, type VerificationCheckType } from "@prisma/client";
 import { env } from "../config/env.js";
+import { postVerificationPayload } from "../lib/aiVerification.js";
 import { VERIFICATION_QUEUE, type VerificationJobPayload } from "../lib/jobs.js";
 import { logger } from "../lib/logger.js";
 import { prisma } from "../lib/prisma.js";
 import { questLocation, submissionLocation } from "../lib/postgis.js";
+import { syncVerificationChecks } from "../lib/verificationChecks.js";
+import { awardAutoApproval } from "../lib/verificationAward.js";
 
 const connection = { url: env.REDIS_URL };
 const queue = new Queue<VerificationJobPayload>(VERIFICATION_QUEUE, { connection });
 
+/** Release the queue's Redis connection during shutdown/tests. */
+export async function closeVerificationQueue(): Promise<void> {
+  await queue.close();
+}
+
+/** Result fields cleared whenever a fresh attempt is queued or started. */
+const clearedRunResult = {
+  startedAt: null,
+  completedAt: null,
+  overallRecommendation: null,
+  overallConfidence: null,
+  fraudRisk: null,
+  summary: null,
+  aiServiceVersion: null,
+  errorMessage: null,
+} as const;
+
 /** Create/mark the run as pending and hand the submission to the worker. */
 export async function enqueueVerification(submissionId: string): Promise<void> {
-  await prisma.verificationRun.upsert({
-    where: { submissionId },
-    create: { submissionId, status: "PENDING" },
-    update: { status: "PENDING", errorMessage: null, attemptCount: { increment: 1 } },
+  await prisma.$transaction(async (tx) => {
+    const run = await tx.verificationRun.upsert({
+      where: { submissionId },
+      create: { submissionId, status: "PENDING" },
+      update: {
+        ...clearedRunResult,
+        status: "PENDING",
+        attemptCount: { increment: 1 },
+      },
+    });
+    // A queued run must not display results from the previous run.
+    await tx.verificationCheck.deleteMany({ where: { runId: run.id } });
   });
   await queue.add(
     "verify",
@@ -46,12 +73,48 @@ export interface AiVerifyResponse {
   checks: AiCheckResult[];
 }
 
+/** Reset the run before an attempt so failed/replayed jobs cannot show old results. */
+async function beginVerificationAttempt(submissionId: string): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const run = await tx.verificationRun.findUnique({
+      where: { submissionId },
+      select: { id: true },
+    });
+    await tx.verificationRun.updateMany({
+      where: { submissionId },
+      data: {
+        ...clearedRunResult,
+        status: "RUNNING",
+        startedAt: new Date(),
+      },
+    });
+    if (run) {
+      await tx.verificationCheck.deleteMany({ where: { runId: run.id } });
+    }
+  });
+}
+
 /** Worker entrypoint: run the AI pipeline and reconcile the submission. */
 export async function runVerification(submissionId: string): Promise<{ status: string }> {
-  await prisma.verificationRun.updateMany({
-    where: { submissionId },
-    data: { status: "RUNNING", startedAt: new Date() },
+  const submission = await prisma.questSubmission.findUnique({
+    where: { id: submissionId },
+    select: { status: true },
   });
+  if (!submission) {
+    throw new Error(`submission ${submissionId} or its quest not found`);
+  }
+  // A redelivered job for an already-resolved submission is a no-op: retries only
+  // apply while verification is still pending. The award itself is also guarded
+  // by the compare-and-set in awardAutoApproval.
+  if (submission.status !== "PENDING_VERIFICATION") {
+    logger.info(
+      { submissionId, status: submission.status },
+      "verification skipped, submission is not pending",
+    );
+    return { status: "skipped" };
+  }
+
+  await beginVerificationAttempt(submissionId);
 
   try {
     const result = await callAiService(submissionId);
@@ -112,22 +175,9 @@ async function callAiService(submissionId: string): Promise<AiVerifyResponse> {
     })),
   };
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15_000);
-  try {
-    const res = await fetch(`${env.AI_SERVICE_URL}/ai/v1/verify/submission`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      throw new Error(`AI service responded ${res.status}`);
-    }
-    return (await res.json()) as AiVerifyResponse;
-  } finally {
-    clearTimeout(timeout);
-  }
+  return postVerificationPayload<AiVerifyResponse>(payload, {
+    timeoutMs: env.AI_TIMEOUT_MS,
+  });
 }
 
 async function recordVerificationRun(submissionId: string, result: AiVerifyResponse): Promise<void> {
@@ -147,23 +197,10 @@ async function recordVerificationRun(submissionId: string, result: AiVerifyRespo
         fraudRisk: result.fraud_risk,
         summary: result.summary,
         aiServiceVersion: "stub-0.1",
+        errorMessage: null,
       },
     });
-    for (const check of result.checks) {
-      await tx.verificationCheck.upsert({
-        where: { runId_checkType: { runId: run.id, checkType: check.check_type as VerificationCheckType } },
-        create: {
-          runId: run.id,
-          checkType: check.check_type as VerificationCheckType,
-          status: check.status as CheckStatus,
-          score: check.score,
-          confidence: check.confidence,
-          message: check.message,
-          details: check.details as Prisma.InputJsonValue | undefined,
-        },
-        update: {},
-      });
-    }
+    await syncVerificationChecks(tx, run.id, result.checks);
   });
 }
 
@@ -201,45 +238,40 @@ async function reconcileSubmission(submissionId: string, result: AiVerifyRespons
 
   if (approveAuto) {
     const xp = Number(quest.xpReward);
-    await prisma.$transaction(async (tx) => {
-      await tx.questSubmission.update({
-        where: { id: submissionId },
-        data: { status: "AUTO_APPROVED", reviewedAt: now },
-      });
-      await tx.questAcceptance.update({
-        where: { id: submission.acceptanceId },
-        data: { status: "APPROVED", completedAt: now, xpAwarded: xp },
-      });
-      const last = await tx.xpTransaction.findFirst({
-        where: { userId: studentId },
-        orderBy: { createdAt: "desc" },
-      });
-      const balanceAfter = Number(last?.balanceAfter ?? 0) + xp;
-      await tx.xpTransaction.create({
-        data: {
-          userId: studentId,
-          sourceType: "QUEST_COMPLETION",
-          sourceId: submissionId,
-          amount: xp,
-          balanceAfter,
-          note: questTitle,
-        },
-      });
-    });
-    logger.info({ submissionId, xp }, "submission auto-approved, XP awarded");
+    const outcome = await prisma.$transaction((tx) =>
+      awardAutoApproval(tx, {
+        submissionId,
+        acceptanceId: submission.acceptanceId,
+        studentId,
+        questTitle,
+        xp,
+        now,
+      }),
+    );
+    if (outcome === "awarded") {
+      logger.info({ submissionId, xp }, "submission auto-approved, XP awarded");
+    } else {
+      logger.info({ submissionId }, "duplicate verification delivery skipped, XP unchanged");
+    }
   } else if (rejectAuto) {
-    await prisma.questSubmission.update({
-      where: { id: submissionId },
+    const updated = await prisma.questSubmission.updateMany({
+      where: { id: submissionId, status: "PENDING_VERIFICATION" },
       data: {
         status: "AUTO_REJECTED",
         reviewedAt: now,
         reviewNote: result.summary || "Rejected by automated checks",
       },
     });
+    if (updated.count === 0) {
+      logger.info({ submissionId }, "duplicate verification delivery skipped, status unchanged");
+    }
   } else {
-    await prisma.questSubmission.update({
-      where: { id: submissionId },
+    const updated = await prisma.questSubmission.updateMany({
+      where: { id: submissionId, status: "PENDING_VERIFICATION" },
       data: { status: "PENDING_MANUAL_REVIEW" },
     });
+    if (updated.count === 0) {
+      logger.info({ submissionId }, "duplicate verification delivery skipped, status unchanged");
+    }
   }
 }

@@ -68,9 +68,11 @@ and `docs/DATA_MODEL.md` §4).
 ## Full stack with Docker Compose
 
 ```bash
-docker compose up --build     # web :8080, api :4000, ai :8000, db :5432, redis :6379
+docker compose up --build     # web :8080, api :4000, ai :8000, db :5433, redis :6379
 ```
 
+The database is published on host port `5433` so it does not collide with a
+locally installed PostgreSQL service; containers still use `db:5432` internally.
 Compose applies migrations automatically (`migrate deploy`) before the API boots.
 Override dev secrets via a `.env` next to `docker-compose.yml`.
 

@@ -1,3 +1,5 @@
+import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import {
   BadgeCheck,
   Building2,
@@ -21,9 +23,44 @@ import { useAuth } from "@/lib/auth";
 import { authApi, teacherApi } from "@/lib/api";
 import type { Institution, TeacherProfileData, UpdateTeacherProfileInput } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DisplayTitle, MetaRow, Rule, SectionHead } from "@/components/gallery";
 import { formatDate } from "@/lib/quests";
+import { cn } from "@/lib/utils";
+
+const chipBase =
+  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-micro text-[10px] uppercase tracking-[0.06em]";
+
+const verificationTone: Record<string, string> = {
+  VERIFIED: "border-emerald/40 bg-emerald/10 text-emerald",
+  PENDING: "border-gold/40 bg-gold/10 text-gold",
+  REJECTED: "border-destructive/40 bg-destructive/10 text-destructive",
+  SUSPENDED: "border-orange/40 bg-orange/10 text-orange",
+};
+
+const selectClass =
+  "h-10 w-full rounded-[6px] border border-frost/40 bg-deep px-3.5 py-2.5 text-sm text-bone shadow-[inset_0_1px_2px_rgba(3,18,26,0.6)] transition-colors focus-visible:border-cyan/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/35 disabled:cursor-not-allowed disabled:opacity-70";
+
+function FieldRow({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: LucideIcon;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-2.5 rounded-[10px] border border-frost/15 bg-white/[0.03] p-4">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-ash" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className="font-micro text-[10px] uppercase leading-none tracking-[0.16em] text-ash">{label}</p>
+        <div className="mt-2">{children}</div>
+      </div>
+    </div>
+  );
+}
 
 export function TeacherProfilePage() {
   const { user } = useAuth();
@@ -125,125 +162,132 @@ export function TeacherProfilePage() {
   const lastName = profile?.lastName ?? user?.lastName ?? "";
   const initials = `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase() || "T";
 
+  const verificationLabel =
+    verificationStatus === "VERIFIED"
+      ? "Verified teacher"
+      : verificationStatus === "REJECTED"
+        ? "Verification rejected"
+        : verificationStatus === "SUSPENDED"
+          ? "Account suspended"
+          : "Verification pending";
+
   if (loading) {
     return (
-      <div className="flex items-center gap-2 py-16 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Loading profile...
+      <div className="flex flex-col items-center justify-center gap-3 py-20">
+        <Loader2 className="h-5 w-5 animate-spin text-emerald" aria-hidden />
+        <p className="font-micro text-[11px] uppercase text-ash">Loading profile...</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <section>
-        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-          <User className="h-6 w-6 text-primary" aria-hidden />
-          Teacher Profile
-        </h1>
-        <p className="text-sm text-muted-foreground">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-16 px-5 pb-16 sm:px-10">
+      <section className="flex flex-col gap-5 pt-12 animate-gallery-rise">
+        <MetaRow>
+          <span>Teacher workspace</span>
+          <span>{isVerified ? "Verified teacher" : `Verification ${verificationStatus.toLowerCase()}`}</span>
+        </MetaRow>
+        <DisplayTitle lines={["PROFILE"]} />
+        <p className="max-w-xl font-micro text-[11px] leading-[1.6] uppercase text-ash">
           View and manage your teacher profile, verification status, and Teacher ID.
         </p>
       </section>
 
       {error && (
-        <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p
+          role="alert"
+          className="rounded-[10px] border border-destructive/40 bg-destructive/10 px-4 py-3 font-micro text-[11px] uppercase text-destructive"
+        >
           {error}
         </p>
       )}
 
       {successMsg && (
-        <p role="status" className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400">
+        <p
+          role="status"
+          className="rounded-[10px] border border-emerald/40 bg-emerald/10 px-4 py-3 font-micro text-[11px] uppercase text-emerald"
+        >
           {successMsg}
         </p>
       )}
 
+      <Rule />
+
       {/* Main Avatar & Profile Banner */}
-      <Card className="border border-border bg-card">
-        <CardContent className="pt-6">
+      <section className="flex flex-col gap-5">
+        <SectionHead kicker="Identity" title="Profile summary" />
+        <Card>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xl font-bold text-primary ring-2 ring-primary/30">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-emerald/40 bg-emerald/10 font-title text-[24px] font-semibold text-emerald">
                 {initials}
               </div>
-              <div>
-                <h2 className="text-xl font-bold">
+              <div className="min-w-0">
+                <h2 className="font-display text-[26px] font-medium leading-[1.15] text-bone">
                   {profile?.firstName} {profile?.lastName}
                 </h2>
-                <p className="text-sm text-muted-foreground">
+                <p className="mt-1 font-micro text-[11px] uppercase text-ash">
                   {profile?.teacherProfile?.designation || "Faculty Member"}
                   {profile?.teacherProfile?.department ? ` • ${profile.teacherProfile.department}` : ""}
                 </p>
-                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                <p className="mt-1.5 flex items-center gap-1.5 font-micro text-[10px] uppercase text-ash">
                   <Building2 className="h-3.5 w-3.5" aria-hidden />
                   {profile?.school?.name || "No Institution Assigned"}
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-col items-start sm:items-end gap-2">
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
-                  verificationStatus === "VERIFIED"
-                    ? "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30"
-                    : verificationStatus === "REJECTED"
-                      ? "bg-red-500/15 text-red-600 border border-red-500/30"
-                      : verificationStatus === "SUSPENDED"
-                        ? "bg-amber-500/15 text-amber-600 border border-amber-500/30"
-                        : "bg-blue-500/15 text-blue-600 border border-blue-500/30"
-                }`}
-              >
-                {verificationStatus === "VERIFIED" && <BadgeCheck className="h-4 w-4" aria-hidden />}
-                {verificationStatus === "PENDING" && <Clock className="h-4 w-4 animate-pulse" aria-hidden />}
-                {verificationStatus === "REJECTED" && <XCircle className="h-4 w-4" aria-hidden />}
-                {verificationStatus === "SUSPENDED" && <AlertTriangle className="h-4 w-4" aria-hidden />}
-
-                {verificationStatus === "VERIFIED"
-                  ? "✓ Verified Teacher"
-                  : verificationStatus === "REJECTED"
-                    ? "✕ Verification Rejected"
-                    : verificationStatus === "SUSPENDED"
-                      ? "⚠ Account Suspended"
-                      : "⏳ Verification Pending"}
+            <div className="flex flex-col items-start gap-2 sm:items-end">
+              <span className={cn(chipBase, verificationTone[verificationStatus] ?? verificationTone.PENDING)}>
+                {verificationStatus === "VERIFIED" && <BadgeCheck className="h-3.5 w-3.5" aria-hidden />}
+                {verificationStatus === "PENDING" && <Clock className="h-3.5 w-3.5" aria-hidden />}
+                {verificationStatus === "REJECTED" && <XCircle className="h-3.5 w-3.5" aria-hidden />}
+                {verificationStatus === "SUSPENDED" && <AlertTriangle className="h-3.5 w-3.5" aria-hidden />}
+                {verificationLabel}
               </span>
 
               {teacherId && (
-                <div className="flex items-center gap-1.5 rounded-md bg-muted/60 px-2.5 py-1 text-xs font-mono font-bold">
-                  <KeyRound className="h-3.5 w-3.5 text-primary" aria-hidden />
-                  <span>Teacher ID:</span>
-                  <code className="text-primary">{teacherId}</code>
-                </div>
+                <span className={cn(chipBase, "border-cyan/40 bg-cyan/10 text-cyan")}>
+                  <KeyRound className="h-3.5 w-3.5" aria-hidden />
+                  <span>Teacher ID</span>
+                  <code className="font-micro text-[10px] tracking-normal">{teacherId}</code>
+                </span>
               )}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </Card>
+      </section>
 
-      {/* Institution Selection / Verification Status Card */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-primary" aria-hidden />
-            Institution & Verification
-          </CardTitle>
-          <CardDescription>
-            {isVerified
-              ? "Your institution membership is verified and active."
-              : "Select your school, college, or institute."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-4">
+      <Rule />
+
+      {/* Institution Selection / Verification Status */}
+      <section className="flex flex-col gap-5">
+        <SectionHead
+          kicker="Membership"
+          title="Institution & verification"
+          right={
+            <span className={cn(chipBase, isVerified ? "border-emerald/40 bg-emerald/10 text-emerald" : "border-gold/40 bg-gold/10 text-gold")}>
+              {isVerified ? "Active" : "Action required"}
+            </span>
+          }
+        />
+        <Card>
+          <p className="font-micro text-[11px] uppercase leading-[1.6] text-ash">
+            {isVerified ? "Your institution membership is verified and active." : "Select your school, college, or institute."}
+          </p>
+
+          <div className="mt-4 flex flex-col gap-4">
             <div className="grid gap-2 sm:grid-cols-3 sm:items-center">
-              <label htmlFor="institution-select" className="text-sm font-medium text-muted-foreground">
+              <label htmlFor="institution-select" className="font-micro text-[10px] uppercase leading-none tracking-[0.16em] text-ash">
                 Institution / School / College
               </label>
-              <div className="sm:col-span-2 flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-col gap-2 sm:col-span-2 sm:flex-row">
                 <select
                   id="institution-select"
                   disabled={assigning}
                   value={selectedSchoolId}
                   onChange={(e) => setSelectedSchoolId(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-border bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-70"
+                  className={selectClass}
                 >
                   <option value="">-- Select Institution --</option>
                   {institutions.map((inst) => (
@@ -258,187 +302,182 @@ export function TeacherProfilePage() {
                   onClick={() => void onAssignInstitution()}
                   disabled={assigning || !selectedSchoolId || selectedSchoolId === (profile?.schoolId || "")}
                 >
-                  {assigning ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Send className="h-4 w-4" aria-hidden />}
+                  {assigning ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Send className="h-4 w-4" aria-hidden />
+                  )}
                   Update Institution
                 </Button>
               </div>
             </div>
 
             {verificationStatus === "PENDING" && (
-              <div className="rounded-md border border-blue-500/30 bg-blue-500/10 p-3 text-xs text-blue-700 dark:text-blue-300">
-                <p className="font-semibold">⏳ Verification Pending</p>
-                <p className="mt-1">
-                  Your account is linked to <strong>{profile?.school?.name || "your institution"}</strong> and
+              <div className="rounded-[10px] border border-gold/40 bg-gold/10 p-4 font-micro text-[11px] uppercase leading-[1.6] text-ash">
+                <p className="inline-flex items-center gap-2 text-gold">
+                  <Clock className="h-3.5 w-3.5" aria-hidden />
+                  Verification pending
+                </p>
+                <p className="mt-1.5">
+                  Your account is linked to{" "}
+                  <strong className="font-normal text-bone">{profile?.school?.name || "your institution"}</strong> and
                   you have full access. Your server-generated Teacher ID will appear automatically.
                 </p>
               </div>
             )}
 
             {verificationStatus === "VERIFIED" && (
-              <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-700 dark:text-emerald-300 flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-emerald/40 bg-emerald/10 p-4 font-micro text-[11px] uppercase leading-[1.6] text-ash">
                 <div>
-                  <p className="font-semibold">✓ Verified Teacher Account</p>
-                  <p className="mt-1">
-                    You have full verified teacher privileges for <strong>{profile?.school?.name}</strong>.
+                  <p className="inline-flex items-center gap-2 text-emerald">
+                    <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
+                    Verified teacher account
+                  </p>
+                  <p className="mt-1.5">
+                    You have full verified teacher privileges for{" "}
+                    <strong className="font-normal text-bone">{profile?.school?.name}</strong>.
                   </p>
                 </div>
                 {profile?.teacherProfile?.verifiedAt && (
-                  <span className="text-[11px] opacity-80 shrink-0">
+                  <span className="shrink-0 text-[10px] text-ash">
                     Verified on {formatDate(profile.teacherProfile.verifiedAt)}
                   </span>
                 )}
               </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Profile Details Card */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <div>
-            <CardTitle className="text-base flex items-center gap-2">
-              <User className="h-4 w-4 text-primary" aria-hidden />
-              Profile Details
-            </CardTitle>
-            <CardDescription>Personal and professional information</CardDescription>
+            {verificationStatus === "REJECTED" && (
+              <div className="rounded-[10px] border border-destructive/40 bg-destructive/10 p-4 font-micro text-[11px] uppercase leading-[1.6] text-ash">
+                <p className="inline-flex items-center gap-2 text-destructive">
+                  <XCircle className="h-3.5 w-3.5" aria-hidden />
+                  Verification rejected
+                </p>
+                <p className="mt-1.5">
+                  Contact your institution administrator to resolve this and re-submit your details.
+                </p>
+              </div>
+            )}
           </div>
-          {!editing && (
-            <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-              <Edit3 className="h-4 w-4" aria-hidden />
-              Edit Profile
-            </Button>
-          )}
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {/* Read-only fields */}
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground" aria-hidden />
-              <div>
-                <p className="text-xs text-muted-foreground">Full Name</p>
-                <p className="text-sm font-medium">{profile?.firstName} {profile?.lastName}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Mail className="h-4 w-4 text-muted-foreground" aria-hidden />
-              <div>
-                <p className="text-xs text-muted-foreground">Email Address</p>
-                <p className="text-sm font-medium">{profile?.email}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-muted-foreground" aria-hidden />
-              <div>
-                <p className="text-xs text-muted-foreground">Institution</p>
-                <p className="text-sm font-medium">{profile?.school?.name ?? "Unassigned"}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-muted-foreground" aria-hidden />
-              <div>
-                <p className="text-xs text-muted-foreground">Member Since</p>
-                <p className="text-sm font-medium">{profile?.createdAt ? formatDate(profile.createdAt) : "—"}</p>
-              </div>
-            </div>
+        </Card>
+      </section>
 
-            {/* Editable fields */}
-            <div className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-muted-foreground" aria-hidden />
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground">Phone</p>
-                {editing ? (
-                  <Input
-                    value={form.phone ?? ""}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    placeholder="Phone number"
-                    className="h-8 text-sm"
-                  />
-                ) : (
-                  <p className="text-sm font-medium">{profile?.teacherProfile?.phone ?? "—"}</p>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Shield className="h-4 w-4 text-muted-foreground" aria-hidden />
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground">Department</p>
-                {editing ? (
-                  <Input
-                    value={form.department ?? ""}
-                    onChange={(e) => setForm({ ...form, department: e.target.value })}
-                    placeholder="e.g., Computer Science and Engineering"
-                    className="h-8 text-sm"
-                  />
-                ) : (
-                  <p className="text-sm font-medium">{profile?.teacherProfile?.department ?? "—"}</p>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <BadgeCheck className="h-4 w-4 text-muted-foreground" aria-hidden />
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground">Designation</p>
-                {editing ? (
-                  <Input
-                    value={form.designation ?? ""}
-                    onChange={(e) => setForm({ ...form, designation: e.target.value })}
-                    placeholder="e.g., Assistant Professor"
-                    className="h-8 text-sm"
-                  />
-                ) : (
-                  <p className="text-sm font-medium">{profile?.teacherProfile?.designation ?? "—"}</p>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <KeyRound className="h-4 w-4 text-muted-foreground" aria-hidden />
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground">Employee ID</p>
-                {editing ? (
-                  <Input
-                    value={form.employeeId ?? ""}
-                    onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                    placeholder="Internal employee ID"
-                    className="h-8 text-sm"
-                  />
-                ) : (
-                  <p className="text-sm font-medium">{profile?.teacherProfile?.employeeId ?? "—"}</p>
-                )}
-              </div>
-            </div>
+      <Rule />
+
+      {/* Profile Details */}
+      <section className="flex flex-col gap-5">
+        <SectionHead
+          kicker="Details"
+          title="Personal & professional"
+          right={
+            !editing ? (
+              <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+                <Edit3 className="h-4 w-4" aria-hidden />
+                Edit Profile
+              </Button>
+            ) : undefined
+          }
+        />
+        <Card>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FieldRow icon={User} label="Full name">
+              <p className="truncate text-sm text-bone">
+                {profile?.firstName} {profile?.lastName}
+              </p>
+            </FieldRow>
+            <FieldRow icon={Mail} label="Email address">
+              <p className="truncate text-sm text-bone">{profile?.email}</p>
+            </FieldRow>
+            <FieldRow icon={Building2} label="Institution">
+              <p className="truncate text-sm text-bone">{profile?.school?.name ?? "Unassigned"}</p>
+            </FieldRow>
+            <FieldRow icon={CalendarDays} label="Member since">
+              <p className="text-sm text-bone">{profile?.createdAt ? formatDate(profile.createdAt) : "—"}</p>
+            </FieldRow>
+
+            <FieldRow icon={Phone} label="Phone">
+              {editing ? (
+                <Input
+                  value={form.phone ?? ""}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  placeholder="Phone number"
+                  className="h-9"
+                />
+              ) : (
+                <p className="text-sm text-bone">{profile?.teacherProfile?.phone ?? "—"}</p>
+              )}
+            </FieldRow>
+            <FieldRow icon={Shield} label="Department">
+              {editing ? (
+                <Input
+                  value={form.department ?? ""}
+                  onChange={(e) => setForm({ ...form, department: e.target.value })}
+                  placeholder="e.g., Computer Science and Engineering"
+                  className="h-9"
+                />
+              ) : (
+                <p className="text-sm text-bone">{profile?.teacherProfile?.department ?? "—"}</p>
+              )}
+            </FieldRow>
+            <FieldRow icon={BadgeCheck} label="Designation">
+              {editing ? (
+                <Input
+                  value={form.designation ?? ""}
+                  onChange={(e) => setForm({ ...form, designation: e.target.value })}
+                  placeholder="e.g., Assistant Professor"
+                  className="h-9"
+                />
+              ) : (
+                <p className="text-sm text-bone">{profile?.teacherProfile?.designation ?? "—"}</p>
+              )}
+            </FieldRow>
+            <FieldRow icon={KeyRound} label="Employee ID">
+              {editing ? (
+                <Input
+                  value={form.employeeId ?? ""}
+                  onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+                  placeholder="Internal employee ID"
+                  className="h-9"
+                />
+              ) : (
+                <p className="text-sm text-bone">{profile?.teacherProfile?.employeeId ?? "—"}</p>
+              )}
+            </FieldRow>
           </div>
 
           {/* Bio section */}
-          <div className="mt-4">
-            <p className="text-xs text-muted-foreground mb-1">Bio / About</p>
+          <div className="mt-4 rounded-[10px] border border-frost/15 bg-white/[0.03] p-4">
+            <p className="font-micro text-[10px] uppercase leading-none tracking-[0.16em] text-ash">Bio / About</p>
             {editing ? (
               <textarea
                 value={form.bio ?? ""}
                 onChange={(e) => setForm({ ...form, bio: e.target.value })}
                 placeholder="A short bio about yourself..."
                 rows={3}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="mt-2 w-full resize-y rounded-[6px] border border-frost/40 bg-deep px-3.5 py-2.5 text-sm text-bone shadow-[inset_0_1px_2px_rgba(3,18,26,0.6)] placeholder:text-ash/70 transition-colors focus-visible:border-cyan/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/35"
               />
             ) : (
-              <p className="text-sm">{profile?.teacherProfile?.bio || "No bio added."}</p>
+              <p className="mt-2 text-sm leading-[1.7] text-bone">{profile?.teacherProfile?.bio || "No bio added."}</p>
             )}
           </div>
 
           {editing && (
-            <div className="mt-4 flex items-center gap-2">
-              <Button size="sm" onClick={() => void onSave()} disabled={saving}>
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Save className="h-4 w-4" aria-hidden />}
-                Save Changes
-              </Button>
+            <div className="mt-4 flex flex-col-reverse items-stretch gap-2 border-t border-frost/15 pt-4 sm:flex-row sm:items-center">
               <Button size="sm" variant="outline" onClick={onCancel} disabled={saving}>
                 <X className="h-4 w-4" aria-hidden />
                 Cancel
               </Button>
+              <Button size="sm" onClick={() => void onSave()} disabled={saving} className="sm:self-end">
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                ) : (
+                  <Save className="h-4 w-4" aria-hidden />
+                )}
+                Save Changes
+              </Button>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </Card>
+      </section>
     </div>
   );
 }

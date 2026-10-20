@@ -9,7 +9,8 @@ from app.main import app
 
 client = TestClient(app)
 
-TOKEN = "dev-ai-token"
+# Matches AI_SERVICE_TOKEN set in tests/conftest.py (independent of local .env).
+TOKEN = "test-service-token"
 AUTH = {"X-AI-Service-Token": TOKEN}
 
 VALID_LLM_JSON = {
@@ -100,3 +101,24 @@ def test_generate_quiz_returns_502_on_llm_failure(monkeypatch) -> None:
         headers=AUTH,
     )
     assert response.status_code == 502
+
+
+def test_generate_quiz_returns_503_for_missing_provider_config(monkeypatch) -> None:
+    def boom(prompt, **kwargs):
+        raise quizgen.LLMError(
+            "Groq API key is not configured. Set AI_GROQ_API_KEY for the AI service.",
+            status_code=503,
+            category="configuration",
+        )
+
+    monkeypatch.setattr(quizgen, "generate_json", boom)
+    response = client.post(
+        "/ai/v1/generate/quiz",
+        json={"run_id": "run-3", "text": "some material", "count": 5},
+        headers=AUTH,
+    )
+
+    assert response.status_code == 503
+    detail = response.json()["detail"]
+    assert "AI_GROQ_API_KEY" in detail
+    assert "Traceback" not in detail

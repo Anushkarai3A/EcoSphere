@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { z } from "zod";
+import { findInsecureProductionSecrets, insecureProductionSecretsMessage } from "./secrets.js";
 
 // dotenv resolves paths relative to process.cwd(), which varies by how the app
 // is launched. Anchor to this module's real location instead: backend/.env for
@@ -30,8 +31,10 @@ const envSchema = z.object({
   AI_SERVICE_URL: z.string().url().default("http://localhost:8000"),
   // Shared secret between backend and the ai-service (must match ai-service AI_SERVICE_TOKEN).
   AI_SERVICE_TOKEN: z.string().min(1).default("dev-ai-token"),
-  // Upper bound for a single AI call (extract / quiz generation).
+  // Upper bound for a standard AI call (extraction / verification).
   AI_TIMEOUT_MS: z.coerce.number().int().positive().default(90_000),
+  // Quiz generation may make several sequential chunk calls; allow more time.
+  AI_QUIZ_TIMEOUT_MS: z.coerce.number().int().positive().default(300_000),
   LOG_LEVEL: z.string().default("info"),
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
@@ -53,6 +56,14 @@ if (!parsed.success) {
   console.error("Invalid environment configuration:");
   // eslint-disable-next-line no-console
   console.error(JSON.stringify(parsed.error.flatten().fieldErrors, null, 2));
+  process.exit(1);
+}
+
+const insecureSecrets = findInsecureProductionSecrets(parsed.data);
+if (insecureSecrets.length > 0) {
+  // Names only: never echo the configured values.
+  // eslint-disable-next-line no-console
+  console.error(insecureProductionSecretsMessage(insecureSecrets));
   process.exit(1);
 }
 

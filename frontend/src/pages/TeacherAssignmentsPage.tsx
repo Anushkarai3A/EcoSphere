@@ -1,15 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  AlertCircle,
   BookOpen,
   Calendar,
-  CheckCircle2,
-  Clock,
-  FileEdit,
-  FilePlus,
+  CalendarClock,
+  ClipboardList,
   FileText,
-  Layers,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
@@ -17,9 +14,55 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { assignmentApi } from "@/lib/api";
 import type { Assignment } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { DisplayTitle, MetaRow, Rule, SectionHead } from "@/components/gallery";
+import { Logo } from "@/components/Logo";
+import { cn } from "@/lib/utils";
+
+const chipBase =
+  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-micro text-[10px] uppercase tracking-[0.06em]";
+
+const statusTone: Record<string, string> = {
+  PUBLISHED: "border-emerald/40 bg-emerald/10 text-emerald",
+  DRAFT: "border-frost/30 bg-white/[0.06] text-ash",
+  SCHEDULED: "border-cyan/40 bg-cyan/10 text-cyan",
+  CLOSED: "border-gold/40 bg-gold/10 text-gold",
+};
+
+const tileTone = {
+  emerald: { box: "border-emerald/35 bg-emerald/10", text: "text-emerald" },
+  cyan: { box: "border-cyan/35 bg-cyan/10", text: "text-cyan" },
+  gold: { box: "border-gold/35 bg-gold/10", text: "text-gold" },
+  ash: { box: "border-frost/30 bg-white/[0.06]", text: "text-ash" },
+} as const;
+
+function MetricTile({
+  icon: Icon,
+  value,
+  label,
+  tone = "emerald",
+}: {
+  icon: LucideIcon;
+  value: string;
+  label: string;
+  tone?: keyof typeof tileTone;
+}) {
+  const t = tileTone[tone];
+  return (
+    <div className="glass-panel flex items-start justify-between gap-3 rounded-[10px] p-4">
+      <div className="min-w-0">
+        <p className="font-title text-[34px] font-semibold leading-none text-bone">{value}</p>
+        <p className="mt-2 font-micro text-[10px] uppercase tracking-[0.08em] text-ash">{label}</p>
+      </div>
+      <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-full border", t.box)}>
+        <Icon className={cn("h-4 w-4", t.text)} aria-hidden />
+      </span>
+    </div>
+  );
+}
 
 export function TeacherAssignmentsPage() {
   const navigate = useNavigate();
@@ -85,260 +128,214 @@ export function TeacherAssignmentsPage() {
   const scheduledCount = assignments.filter((a) => a.status === "SCHEDULED").length;
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Assignment Management</h1>
-          <p className="text-sm text-muted-foreground">
-            Create, schedule, publish, and evaluate assignments for your students with automated verification and gamification.
-          </p>
-        </div>
-        <Button onClick={() => navigate("/app/teacher/assignments/create")} className="gap-2 shadow-md">
-          <Plus className="h-4 w-4" />
-          Create Assignment
-        </Button>
-      </div>
-
-      {/* Metrics Row */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-primary/10 p-2.5 text-primary">
-              <Layers className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Total Assignments</p>
-              <p className="text-xl font-bold">{loading ? "..." : totalCount}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-emerald-500/10 p-2.5 text-emerald-500">
-              <CheckCircle2 className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Published</p>
-              <p className="text-xl font-bold text-emerald-500">{loading ? "..." : publishedCount}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-amber-500/10 p-2.5 text-amber-500">
-              <FileEdit className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Drafts</p>
-              <p className="text-xl font-bold text-amber-500">{loading ? "..." : draftCount}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-blue-500/10 p-2.5 text-blue-500">
-              <Clock className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Scheduled</p>
-              <p className="text-xl font-bold text-blue-500">{loading ? "..." : scheduledCount}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter & Search Bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-card p-1">
-          {["ALL", "PUBLISHED", "DRAFT", "SCHEDULED", "CLOSED"].map((status) => (
-            <button
-              key={status}
-              onClick={() => setSelectedStatus(status)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                selectedStatus === status
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
-              }`}
-            >
-              {status === "ALL" ? "All Assignments" : status.charAt(0) + status.slice(1).toLowerCase()}
-            </button>
-          ))}
-        </div>
-
-        <div className="relative min-w-[240px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search assignments..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-border bg-background py-1.5 pl-9 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-        </div>
-      </div>
-
-      {/* Error State */}
-      {error && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" />
-            <span>{error}</span>
-          </div>
-          <Button variant="outline" size="sm" onClick={fetchAssignments}>
-            Retry
-          </Button>
-        </div>
-      )}
-
-      {/* Loading State */}
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-          <RefreshCw className="h-8 w-8 animate-spin mb-3 text-primary" />
-          <p className="text-sm font-medium">Loading assignments...</p>
-        </div>
-      ) : filtered.length === 0 ? (
-        /* Empty State */
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16 text-center">
-          <div className="rounded-full bg-primary/10 p-4 text-primary mb-3">
-            <FilePlus className="h-8 w-8" />
-          </div>
-          <h3 className="text-lg font-semibold">No assignments found</h3>
-          <p className="text-sm text-muted-foreground max-w-md mt-1 mb-4">
-            {searchQuery
-              ? `No assignments match your search "${searchQuery}".`
-              : "Get started by creating your first assignment for your students."}
-          </p>
-          <Button onClick={() => navigate("/app/teacher/assignments/create")} className="gap-2">
-            <Plus className="h-4 w-4" />
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-5 pb-16 sm:px-10">
+      {/* HERO */}
+      <section className="flex flex-col gap-5 pt-12 animate-gallery-rise">
+        <MetaRow>
+          <span>Assignment workspace</span>
+          <span>{totalCount} assignments</span>
+        </MetaRow>
+        <DisplayTitle lines={["ASSIGNMENT", "MANAGEMENT"]} />
+        <p className="max-w-xl font-micro text-[11px] leading-[1.6] uppercase text-ash">
+          Create, schedule, publish, and evaluate assignments for your students with automated verification and gamification.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={() => navigate("/app/teacher/assignments/create")}>
+            <Plus className="h-4 w-4" aria-hidden />
             Create Assignment
           </Button>
         </div>
-      ) : (
-        /* Assignment List Table / Cards */
-        <div className="space-y-3">
-          {filtered.map((a) => {
-            const isPublished = a.status === "PUBLISHED";
-            const isDraft = a.status === "DRAFT";
-            const isScheduled = a.status === "SCHEDULED";
-            const submissionsCount = a._count?.submissions ?? a.submissions?.length ?? 0;
-            const dueFormatted = new Date(a.dueAt).toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            });
+      </section>
 
-            return (
-              <div
-                key={a.id}
-                className="group flex flex-col gap-4 rounded-xl border border-border bg-card p-5 shadow-sm transition-all hover:border-primary/40 hover:shadow-md md:flex-row md:items-center md:justify-between"
-              >
-                <div className="space-y-1.5 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                        isPublished
-                          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                          : isDraft
-                          ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                          : isScheduled
-                          ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                      {a.status}
-                    </span>
+      <Rule />
 
-                    {a.subject && (
-                      <span className="rounded-md bg-accent px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                        {a.subject}
-                      </span>
-                    )}
-
-                    <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                      {a.type.replace("_", " ")}
-                    </span>
-                  </div>
-
-                  <Link
-                    to={`/app/teacher/assignments/${a.id}`}
-                    className="text-lg font-semibold tracking-tight hover:text-primary transition-colors block"
-                  >
-                    {a.title}
-                  </Link>
-
-                  <p className="text-xs text-muted-foreground line-clamp-2">{a.description}</p>
-
-                  <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-1">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar className="h-3.5 w-3.5 text-primary/70" />
-                      <span>Due: {dueFormatted}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Users className="h-3.5 w-3.5 text-primary/70" />
-                      <span>{a.classGroup?.name || (a.targetType === "STUDENTS" ? "Specific Students" : "All Enrolled")}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <BookOpen className="h-3.5 w-3.5 text-primary/70" />
-                      <span>{a.maxMarks} Marks</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-semibold text-emerald-500">+{Number(a.xpReward)} XP</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Submissions & Actions */}
-                <div className="flex items-center justify-between gap-4 border-t border-border pt-3 md:border-t-0 md:pt-0 md:justify-end">
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground font-medium">Submissions</p>
-                    <p className="text-base font-bold text-foreground">{submissionsCount}</p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/app/teacher/assignments/${a.id}`)}
-                      className="gap-1.5"
-                    >
-                      <FileText className="h-3.5 w-3.5" />
-                      View / Grade
-                    </Button>
-
-                    {isDraft ? (
-                      <Button variant="default" size="sm" onClick={() => handlePublish(a.id)} className="gap-1 bg-emerald-600 hover:bg-emerald-700">
-                        <Send className="h-3.5 w-3.5" />
-                        Publish
-                      </Button>
-                    ) : isPublished ? (
-                      <Button variant="ghost" size="sm" onClick={() => handleUnpublish(a.id)} className="text-muted-foreground">
-                        Unpublish
-                      </Button>
-                    ) : null}
-
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(a.id)}
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      title="Archive Assignment"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+      {/* METRICS */}
+      <section className="flex flex-col gap-5">
+        <SectionHead kicker="Overview" title="Metrics" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <MetricTile icon={ClipboardList} value={loading ? "…" : String(totalCount)} label="Total assignments" />
+          <MetricTile icon={Send} value={loading ? "…" : String(publishedCount)} label="Published" tone="cyan" />
+          <MetricTile icon={Pencil} value={loading ? "…" : String(draftCount)} label="Drafts" tone="ash" />
+          <MetricTile icon={CalendarClock} value={loading ? "…" : String(scheduledCount)} label="Scheduled" tone="gold" />
         </div>
-      )}
+      </section>
+
+      <Rule />
+
+      {/* LIST */}
+      <section className="flex flex-col gap-5">
+        {/* Filter & Search Bar */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="inline-flex flex-wrap gap-1 rounded-full border border-frost/20 bg-deep/60 p-1">
+            {["ALL", "PUBLISHED", "DRAFT", "SCHEDULED", "CLOSED"].map((status) => (
+              <button
+                key={status}
+                type="button"
+                onClick={() => setSelectedStatus(status)}
+                className={cn(
+                  "rounded-full px-3.5 py-1.5 font-micro text-[10px] uppercase tracking-[0.06em] transition-colors",
+                  selectedStatus === status
+                    ? "bg-emerald/15 text-emerald shadow-[inset_0_0_0_1px_rgba(46,207,143,0.45)]"
+                    : "text-ash hover:text-bone",
+                )}
+              >
+                {status === "ALL" ? "All Assignments" : status.charAt(0) + status.slice(1).toLowerCase()}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative min-w-[240px]">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ash" aria-hidden />
+            <input
+              type="text"
+              placeholder="Search assignments..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-[6px] border border-frost/40 bg-deep px-3.5 py-2.5 pl-9 text-sm text-bone shadow-[inset_0_1px_2px_rgba(3,18,26,0.6)] placeholder:text-ash/70 focus:border-cyan/70 focus:outline-none focus:ring-2 focus:ring-cyan/35"
+            />
+          </div>
+        </div>
+
+        {/* Error State */}
+        {error && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-destructive/40 bg-destructive/10 p-4 font-micro text-[11px] uppercase text-destructive">
+            <span>{error}</span>
+            <Button variant="outline" size="sm" onClick={fetchAssignments}>
+              Retry
+            </Button>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-16">
+            <RefreshCw className="h-6 w-6 animate-spin text-emerald" aria-hidden />
+            <p className="font-micro text-[11px] uppercase text-ash">Loading assignments...</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          /* Empty State */
+          <div className="flex flex-col items-center justify-center rounded-[10px] border border-dashed border-frost/25 px-4 py-16 text-center">
+            <Logo className="mb-3 h-12 w-12 opacity-80" />
+            <h3 className="font-display text-[22px] font-medium text-bone">No assignments found</h3>
+            <p className="mt-1 mb-4 max-w-md font-micro text-[11px] uppercase text-ash">
+              {searchQuery
+                ? `No assignments match your search "${searchQuery}".`
+                : "Get started by creating your first assignment for your students."}
+            </p>
+            <Button onClick={() => navigate("/app/teacher/assignments/create")}>
+              <Plus className="h-4 w-4" aria-hidden />
+              Create Assignment
+            </Button>
+          </div>
+        ) : (
+          /* Assignment List */
+          <div className="flex flex-col">
+            {filtered.map((a) => {
+              const isPublished = a.status === "PUBLISHED";
+              const isDraft = a.status === "DRAFT";
+              const submissionsCount = a._count?.submissions ?? a.submissions?.length ?? 0;
+              const dueFormatted = new Date(a.dueAt).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+
+              return (
+                <div
+                  key={a.id}
+                  className="group flex flex-col gap-4 border-t border-frost/15 py-5 last:border-b md:flex-row md:items-center md:justify-between"
+                >
+                  <div className="space-y-1.5 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`${chipBase} ${statusTone[a.status] ?? "border-frost/30 bg-white/[0.06] text-ash"}`}>
+                        <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
+                        {a.status}
+                      </span>
+
+                      {a.subject && (
+                        <span className="rounded-[2px] border border-frost/30 bg-white/[0.06] px-2 py-0.5 font-micro text-[10px] uppercase text-white">
+                          {a.subject}
+                        </span>
+                      )}
+
+                      <span className="rounded-[2px] border border-frost/30 bg-white/[0.06] px-2 py-0.5 font-micro text-[10px] uppercase text-white">
+                        {a.type.replace("_", " ")}
+                      </span>
+                    </div>
+
+                    <Link
+                      to={`/app/teacher/assignments/${a.id}`}
+                      className="block font-display text-[22px] font-normal leading-none text-white hover:opacity-80 transition-opacity"
+                    >
+                      {a.title}
+                    </Link>
+
+                    <p className="line-clamp-2 max-w-3xl text-sm text-ash">{a.description}</p>
+
+                    <MetaRow>
+                      <span className="inline-flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5" aria-hidden />
+                        Due: {dueFormatted}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <Users className="h-3.5 w-3.5" aria-hidden />
+                        {a.classGroup?.name || (a.targetType === "STUDENTS" ? "Specific Students" : "All Enrolled")}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <BookOpen className="h-3.5 w-3.5" aria-hidden />
+                        {a.maxMarks} Marks
+                      </span>
+                      <span className="text-white">+{Number(a.xpReward)} XP</span>
+                    </MetaRow>
+                  </div>
+
+                  {/* Submissions & Actions */}
+                  <div className="flex items-center justify-between gap-4 border-t border-frost/15 pt-3 md:justify-end md:border-t-0 md:pt-0">
+                    <div className="text-right">
+                      <p className="font-micro text-[10px] uppercase text-ash">Submissions</p>
+                      <p className="font-display text-[22px] font-normal leading-none text-white">{submissionsCount}</p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/app/teacher/assignments/${a.id}`)}
+                      >
+                        <FileText className="h-3.5 w-3.5" aria-hidden />
+                        View / Grade
+                      </Button>
+
+                      {isDraft ? (
+                        <Button variant="default" size="sm" onClick={() => handlePublish(a.id)} className="bg-charcoal hover:bg-white/[0.06]">
+                          <Send className="h-3.5 w-3.5" aria-hidden />
+                          Publish
+                        </Button>
+                      ) : isPublished ? (
+                        <Button variant="ghost" size="sm" onClick={() => handleUnpublish(a.id)} className="text-ash">
+                          Unpublish
+                        </Button>
+                      ) : null}
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(a.id)}
+                        className="h-8 w-8 text-ash hover:text-white"
+                        title="Archive Assignment"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

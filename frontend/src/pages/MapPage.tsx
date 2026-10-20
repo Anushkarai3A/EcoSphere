@@ -1,9 +1,10 @@
 import { CheckCircle2, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { QuestMap } from "@/components/map/QuestMap";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { DisplayTitle, MetaRow, Rule } from "@/components/gallery";
 import { Logo } from "@/components/Logo";
 import { participationApi, questApi } from "@/lib/api";
 import { categoryMeta, formatDistance, questCategories } from "@/lib/quests";
@@ -20,13 +21,18 @@ const radiusOptions = [
 ];
 
 const selectClass =
-  "h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "h-10 rounded-[2px] border border-frost/40 bg-void px-3 font-micro text-[10px] uppercase text-white";
 
 export function MapPage() {
   const navigate = useNavigate();
+  // Deep links: /app/map?category=TREE_PLANTATION (used by landing region cards).
+  const [searchParams, setSearchParams] = useSearchParams();
   const [center, setCenter] = useState(DEFAULT_CENTER);
   const [radius, setRadius] = useState(10000);
-  const [category, setCategory] = useState<QuestCategory | "">("");
+  const [category, setCategory] = useState<QuestCategory | "">(() => {
+    const raw = searchParams.get("category");
+    return questCategories.some((c) => c.value === raw) ? (raw as QuestCategory) : "";
+  });
   const [quests, setQuests] = useState<NearbyQuest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,8 +40,23 @@ export function MapPage() {
   const [autoLocate, setAutoLocate] = useState<{ lat: number; lng: number } | null>(null);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [accepted, setAccepted] = useState<string[]>([]);
+  const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [acceptError, setAcceptError] = useState<string | null>(null);
   const [listOpen, setListOpen] = useState(() => typeof window !== "undefined" && window.innerWidth >= 768);
+
+  // Completed quests → muted marker + checkmark (real data from the API).
+  useEffect(() => {
+    participationApi
+      .myAcceptances()
+      .then(({ items }) => {
+        setCompletedIds(
+          items
+            .filter((a) => a.status === "APPROVED" && a.completedAt != null)
+            .map((a) => a.quest.id),
+        );
+      })
+      .catch(() => setCompletedIds([]));
+  }, []);
 
   useEffect(() => {
     if (!("geolocation" in navigator)) {
@@ -87,6 +108,14 @@ export function MapPage() {
 
   const visible = quests.filter((q) => (category ? q.category === category : true));
 
+  const applyCategory = (value: QuestCategory | "") => {
+    setCategory(value);
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set("category", value);
+    else next.delete("category");
+    setSearchParams(next, { replace: true });
+  };
+
   const handleAccept = async (quest: NearbyQuest) => {
     setAcceptingId(quest.id);
     setAcceptError(null);
@@ -101,7 +130,7 @@ export function MapPage() {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] flex-col overflow-hidden">
+    <div className="flex h-[calc(100dvh-3.5rem)] flex-col overflow-hidden">
       {/* Map fills the viewport; quest filters/list live in a collapsible drawer. */}
       <div className="relative min-h-0 flex-1">
         <QuestMap
@@ -112,15 +141,25 @@ export function MapPage() {
           acceptQuest={handleAccept}
           acceptingId={acceptingId}
           accepted={accepted}
+          completedIds={completedIds}
           onGoToMyQuests={() => navigate("/app/student")}
         />
+
+        {/* Gallery hero floating over the live map (the map is the artwork). */}
+        <div className="glass-panel pointer-events-none absolute left-4 top-20 z-[5] max-w-[min(20rem,70vw)] animate-gallery-rise rounded-[10px] px-4 py-4">
+          <MetaRow>
+            <span>Live quest map</span>
+            <span>{radius / 1000} km radius</span>
+          </MetaRow>
+          <DisplayTitle lines={["QUEST", "MAP"]} className="mt-3" />
+        </div>
       </div>
 
-      <div className="z-20 shrink-0 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+      <div className="z-20 shrink-0 border-t border-frost/15 bg-void/95 backdrop-blur supports-[backdrop-filter]:bg-void/70">
         <div className="flex items-center gap-2 px-4 py-2">
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 text-sm font-semibold"
+            className="inline-flex items-center gap-1.5 font-micro text-[10px] uppercase text-white"
             onClick={() => setListOpen((v) => !v)}
           >
             {listOpen ? <ChevronDown className="h-4 w-4" aria-hidden /> : <ChevronUp className="h-4 w-4" aria-hidden />}
@@ -130,7 +169,7 @@ export function MapPage() {
             <select
               className={selectClass}
               value={category}
-              onChange={(e) => setCategory(e.target.value as QuestCategory | "")}
+              onChange={(e) => applyCategory(e.target.value as QuestCategory | "")}
               aria-label="Filter by category"
             >
               <option value="">All categories</option>
@@ -155,28 +194,30 @@ export function MapPage() {
           </div>
         </div>
 
+        <Rule />
+
         {geoError && (
-          <p role="alert" className="px-4 pb-2 text-sm text-destructive">
+          <p role="alert" className="px-4 pb-2 pt-2 font-micro text-[11px] uppercase text-destructive">
             {geoError}
           </p>
         )}
         {error && (
-          <p role="alert" className="px-4 pb-2 text-sm text-destructive">
+          <p role="alert" className="px-4 pb-2 pt-2 font-micro text-[11px] uppercase text-destructive">
             {error}
           </p>
         )}
         {acceptError && (
-          <p role="alert" className="px-4 pb-2 text-sm text-destructive">
+          <p role="alert" className="px-4 pb-2 pt-2 font-micro text-[11px] uppercase text-destructive">
             {acceptError}
           </p>
         )}
 
         {listOpen && (
-          <div className="max-h-56 overflow-y-auto px-4 pb-3">
+          <div className="max-h-56 overflow-y-auto px-4 pb-3 pt-3">
             {!loading && !error && visible.length === 0 && (
-              <div className="flex flex-col items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-8 text-center text-sm text-muted-foreground">
+              <div className="flex flex-col items-center gap-3 rounded-[2px] border border-frost/25 px-4 py-8 text-center">
                 <Logo className="h-12 w-12 opacity-80" />
-                <p>
+                <p className="font-micro text-[11px] leading-[1.6] uppercase text-ash">
                   No active quests within {radius / 1000} km of this area. Try widening the radius or removing the
                   category filter.
                 </p>
@@ -187,20 +228,20 @@ export function MapPage() {
                 const meta = categoryMeta(quest.category);
                 const isAccepted = accepted.includes(quest.id);
                 return (
-                  <Card key={quest.id} className={cn("transition-colors", isAccepted && "border-emerald-500/40")}>
+                  <Card key={quest.id} className={cn("transition-colors", isAccepted && "border-frost/40")}>
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: meta.color }} aria-hidden />
+                        <span className="inline-flex items-center gap-1.5 font-micro text-[10px] uppercase text-ash">
+                          <span className="h-2 w-2 rounded-[2px] bg-white/70" aria-hidden />
                           {meta.label}
                         </span>
-                        <span className="text-xs font-semibold text-primary">{quest.xpReward} XP</span>
+                        <span className="font-micro text-[10px] uppercase text-white">{quest.xpReward} XP</span>
                       </div>
-                      <CardTitle className="text-base">{quest.title}</CardTitle>
+                      <CardTitle className="text-[22px] leading-none text-white">{quest.title}</CardTitle>
                       <CardDescription className="line-clamp-2">{quest.description}</CardDescription>
                     </CardHeader>
-                    <CardContent className="text-sm text-muted-foreground">
-                      <div className="flex items-center justify-between">
+                    <CardContent>
+                      <div className="flex items-center justify-between font-micro text-[10px] uppercase text-ash">
                         <span>{formatDistance(quest.distanceMeters)} away</span>
                         <span>until {new Date(quest.endsAt).toLocaleDateString()}</span>
                       </div>
@@ -208,7 +249,7 @@ export function MapPage() {
                     <CardFooter className="pt-0">
                       {isAccepted ? (
                         <div className="flex w-full items-center justify-between gap-2">
-                          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-600">
+                          <span className="inline-flex items-center gap-1.5 font-micro text-[10px] uppercase text-white">
                             <CheckCircle2 className="h-4 w-4" aria-hidden />
                             Accepted
                           </span>

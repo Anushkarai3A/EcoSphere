@@ -66,7 +66,7 @@ Rules:
 def direct_film(req: FilmRequest) -> FilmResponse:
     log.info("filmgen: calling LLM for prompt=%r", req.prompt[:60])
     try:
-        raw = generate_json(_build_prompt(req), system=_SYSTEM_PROMPT, temperature=0.7, max_tokens=1024)
+        raw = generate_json(_build_prompt(req), system=_SYSTEM_PROMPT, temperature=0.7, max_tokens=4096)
     except LLMError as exc:
         log.error("filmgen: LLM error: %s", exc)
         raise

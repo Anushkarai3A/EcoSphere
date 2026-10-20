@@ -2,9 +2,14 @@ from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 
+from app.core.config import settings
 from app.main import app
 
 client = TestClient(app)
+
+# Matches AI_SERVICE_TOKEN set in tests/conftest.py, so the suite does not depend
+# on whatever a developer has in ai-service/.env.
+AUTH = {"X-AI-Service-Token": "test-service-token"}
 
 QUEST_BASE = {
     "submission_id": "00000000-0000-0000-0000-000000000001",
@@ -27,8 +32,23 @@ def test_health() -> None:
     body = response.json()
     assert body["status"] == "ok"
     assert body["service"] == "ecosphere-ai"
-    assert body["llm_provider"] == "groq"
-    assert body["llm_model"] == "openai/gpt-oss-120b"
+    # Health must report whatever configuration is active, not a hard-coded model.
+    assert body["llm_provider"] == settings.llm_provider
+    assert body["llm_model"] == settings.groq_model
+
+
+def test_verify_rejects_missing_token() -> None:
+    response = client.post("/ai/v1/verify/submission", json=QUEST_BASE)
+    assert response.status_code == 403
+
+
+def test_verify_rejects_invalid_token() -> None:
+    response = client.post(
+        "/ai/v1/verify/submission",
+        json=QUEST_BASE,
+        headers={"X-AI-Service-Token": "not-the-service-token"},
+    )
+    assert response.status_code == 403
 
 
 def test_verify_approves_when_fresh_and_at_quest() -> None:
@@ -41,7 +61,7 @@ def test_verify_approves_when_fresh_and_at_quest() -> None:
             "radius_meters": 150,
         },
     }
-    response = client.post("/ai/v1/verify/submission", json=payload)
+    response = client.post("/ai/v1/verify/submission", json=payload, headers=AUTH)
     assert response.status_code == 200
     body = response.json()
     assert body["overall_recommendation"] == "APPROVE"
@@ -60,7 +80,7 @@ def test_verify_rejects_when_out_of_radius() -> None:
             "radius_meters": 150,
         },
     }
-    response = client.post("/ai/v1/verify/submission", json=payload)
+    response = client.post("/ai/v1/verify/submission", json=payload, headers=AUTH)
     assert response.status_code == 200
     body = response.json()
     assert body["overall_recommendation"] == "REJECT"
@@ -70,7 +90,7 @@ def test_verify_rejects_when_out_of_radius() -> None:
 
 
 def test_verify_needs_manual_review_without_quest_location() -> None:
-    response = client.post("/ai/v1/verify/submission", json=QUEST_BASE)
+    response = client.post("/ai/v1/verify/submission", json=QUEST_BASE, headers=AUTH)
     assert response.status_code == 200
     body = response.json()
     assert body["overall_recommendation"] == "NEEDS_MANUAL_REVIEW"

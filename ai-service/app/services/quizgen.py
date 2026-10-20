@@ -25,6 +25,17 @@ log = logging.getLogger("ai.quizgen")
 class QuizGenError(RuntimeError):
     """Raised when the LLM output cannot be validated as a quiz."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int = 502,
+        category: str = "generation",
+    ) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.category = category
+
 
 _SYSTEM_PROMPT = (
     "You are an expert assessment designer creating a multiple-choice quiz from "
@@ -105,7 +116,8 @@ def _validate_questions(raw_questions: list) -> list[QuizQuestion]:
         except ValidationError as exc:
             raise QuizGenError(
                 f"AI returned an invalid question (#{index + 1}): "
-                f"{'; '.join(e['msg'] for e in exc.errors())}"
+                f"{'; '.join(e['msg'] for e in exc.errors())}",
+                category="response_parse",
             ) from exc
         questions.append(question)
     return questions
@@ -230,8 +242,15 @@ def _generate_single_chunk(
     try:
         data = generate_json(prompt, system=_SYSTEM_PROMPT)
     except LLMError as exc:
-        log.error("LLM call failed: %s", exc)
-        raise QuizGenError(str(exc)) from exc
+        log.error(
+            "LLM call failed category=%s status=%s error=%s",
+            exc.category, exc.status_code, exc,
+        )
+        raise QuizGenError(
+            str(exc),
+            status_code=exc.status_code,
+            category=exc.category,
+        ) from exc
 
     detected_topic, questions = _parse_quiz_data(data, "single chunk")
     if not detected_topic:
@@ -326,8 +345,15 @@ def _generate_multi_chunk(
         try:
             data = generate_json(prompt, system=_SYSTEM_PROMPT)
         except LLMError as exc:
-            log.error("LLM call failed on chunk %d/%d: %s", chunk_num, num_chunks, exc)
-            raise QuizGenError(str(exc)) from exc
+            log.error(
+                "LLM call failed on chunk %d/%d category=%s status=%s error=%s",
+                chunk_num, num_chunks, exc.category, exc.status_code, exc,
+            )
+            raise QuizGenError(
+                str(exc),
+                status_code=exc.status_code,
+                category=exc.category,
+            ) from exc
 
         chunk_topic, chunk_questions = _parse_quiz_data(
             data, f"chunk {chunk_num}/{num_chunks}"

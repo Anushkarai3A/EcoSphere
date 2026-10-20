@@ -6,6 +6,7 @@ import type { UserRole } from "@/lib/types";
 import { AdminDashboardPage } from "@/pages/AdminDashboardPage";
 import { TeacherDashboardPage } from "@/pages/TeacherDashboardPage";
 import { HomePage } from "@/pages/HomePage";
+import { LandingPage } from "@/pages/LandingPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { MapPage } from "@/pages/MapPage";
 import { RegisterPage } from "@/pages/RegisterPage";
@@ -53,6 +54,7 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route element={<ProtectedLayout />}>

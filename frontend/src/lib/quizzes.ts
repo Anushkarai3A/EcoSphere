@@ -16,8 +16,8 @@ export const quizStatusLabels: Record<QuizStatus, string> = {
 
 export const quizStatusTone: Record<QuizStatus, string> = {
   DRAFT: "bg-muted text-muted-foreground",
-  PUBLISHED: "bg-sky-100 text-sky-800",
-  ARCHIVED: "bg-slate-200 text-slate-600",
+  PUBLISHED: "bg-white/[0.06] text-white",
+  ARCHIVED: "bg-white/[0.06] text-ash",
 };
 
 export function questionTypeLabel(type: string | null): string {

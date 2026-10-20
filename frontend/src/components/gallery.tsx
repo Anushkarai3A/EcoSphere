@@ -2,14 +2,15 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Shared gallery primitives: monumental display type, micro mono metadata,
- * hairline rules. Pages compose these; business logic stays in the pages.
+ * Shared EcoSphere presentation primitives: monumental title type, micro mono
+ * metadata, hairline rules, stat readouts. Pages compose these; business logic
+ * stays in the pages.
  */
 
-/** Monumental left-aligned display title with signature underline marks. */
+/** Monumental left-aligned title with the signature emerald→cyan underline mark. */
 export function DisplayTitle({ lines, className }: { lines: string[]; className?: string }) {
   return (
-    <h1 className={cn("text-gallery-display text-white", className)}>
+    <h1 className={cn("text-gallery-display text-bone", className)}>
       {lines.map((line, i) => (
         <span key={i} className="block">
           <span className="gallery-underline">{line}</span>
@@ -28,7 +29,7 @@ export function MetaRow({ children, className }: { children: ReactNode; classNam
   );
 }
 
-/** Editorial section heading: small display + mono kicker. */
+/** Section heading: mono kicker in emerald + clean display title. */
 export function SectionHead({
   kicker,
   title,
@@ -43,8 +44,11 @@ export function SectionHead({
   return (
     <div className={cn("flex flex-wrap items-end justify-between gap-4", className)}>
       <div>
-        <p className="font-micro text-[10px] uppercase tracking-[-0.02em] text-ash">{kicker}</p>
-        <h2 className="mt-2 font-display text-[30px] font-normal leading-none text-white">{title}</h2>
+        <p className="flex items-center gap-2 font-micro text-[10px] uppercase tracking-[0.08em] text-emerald">
+          <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-emerald shadow-[0_0_10px_rgba(46,207,143,0.9)]" />
+          {kicker}
+        </p>
+        <h2 className="mt-2 font-display text-[30px] font-medium leading-[1.1] tracking-tight text-bone">{title}</h2>
       </div>
       {right}
     </div>
@@ -57,10 +61,12 @@ export function Rule({ className }: { className?: string }) {
 }
 
 /** Stat readout: big display number + mono caption. */
-export function Stat({ value, caption }: { value: string; caption: string }) {
+export function Stat({ value, caption, accent = false }: { value: string; caption: string; accent?: boolean }) {
   return (
     <div>
-      <p className="font-display text-[30px] font-normal leading-none text-white">{value}</p>
+      <p className={cn("font-title text-[34px] font-semibold leading-none", accent ? "text-gold text-glow-gold" : "text-bone")}>
+        {value}
+      </p>
       <p className="mt-2 font-micro text-[10px] uppercase text-ash">{caption}</p>
     </div>
   );

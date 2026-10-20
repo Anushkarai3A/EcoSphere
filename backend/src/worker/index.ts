@@ -36,10 +36,14 @@ export async function startWorker(): Promise<void> {
     const attempts = job.opts.attempts ?? 1;
     if (job.attemptsMade >= attempts) {
       // Exhausted retries: fall back to manual review so the teacher can decide
-      // even when the AI service is down (FR-V6).
+      // even when the AI service is down (FR-V6). Only reopen submissions that
+      // are still awaiting verification; never overwrite a terminal outcome.
       void prisma.questSubmission
-        .update({
-          where: { id: job.data.submissionId },
+        .updateMany({
+          where: {
+            id: job.data.submissionId,
+            status: "PENDING_VERIFICATION",
+          },
           data: { status: "PENDING_MANUAL_REVIEW" },
         })
         .catch((updateErr) => logger.error({ err: updateErr }, "failed to fallback submission"));

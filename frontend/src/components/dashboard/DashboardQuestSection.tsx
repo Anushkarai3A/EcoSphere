@@ -1,6 +1,7 @@
-import { Compass, Loader2, LocateFixed, MapPin, Plus, Search } from "lucide-react";
+import { Loader2, LocateFixed, Plus, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { SectionHead } from "@/components/gallery";
 import { NearbyQuestCard } from "@/components/dashboard/NearbyQuestCard";
 import { QuestDetailsModal } from "@/components/dashboard/QuestDetailsModal";
 import { QuestMap, type QuestMapHandle } from "@/components/map/QuestMap";
@@ -27,7 +28,7 @@ const radiusOptions = [
 ];
 
 const selectClass =
-  "h-9 rounded-md border border-input bg-background px-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "h-9 rounded-[2px] border border-frost/30 bg-void px-2.5 font-micro text-[10px] uppercase text-bone focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-cyan";
 
 export interface DashboardQuestSectionProps {
   /** "student" offers Accept quest actions; "teacher" offers View details + Create. */
@@ -98,42 +99,42 @@ export function DashboardQuestSection({ mode, onGoToMyQuests, onCreateQuest }: D
 
   return (
     <section className="flex flex-col gap-4" aria-label="Quest map">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight">
-            <MapPin className="h-5 w-5 text-primary" aria-hidden />
-            Discover quests near you
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {mode === "student"
-              ? "Travel to real-world quests, capture evidence, and earn XP."
-              : "See live quests around you — your own quests are marked with a gold star."}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            Radius
-            <select className={selectClass} value={radius} onChange={(e) => setRadius(Number(e.target.value))} aria-label="Search radius">
-              {radiusOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          {mode === "teacher" && onCreateQuest ? (
-            <Button onClick={onCreateQuest}>
-              <Plus className="h-4 w-4" aria-hidden />
-              Create quest
-            </Button>
-          ) : null}
-        </div>
+      <div className="flex flex-col gap-3">
+        <SectionHead
+          kicker="Live quest map"
+          title="Discover quests near you"
+          right={
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-2 font-micro text-[10px] uppercase text-ash">
+                Radius
+                <select className={selectClass} value={radius} onChange={(e) => setRadius(Number(e.target.value))} aria-label="Search radius">
+                  {radiusOptions.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {mode === "teacher" && onCreateQuest ? (
+                <Button onClick={onCreateQuest}>
+                  <Plus className="h-4 w-4" aria-hidden />
+                  Create quest
+                </Button>
+              ) : null}
+            </div>
+          }
+        />
+        <p className="max-w-xl text-sm text-ash">
+          {mode === "student"
+            ? "Travel to real-world quests, capture evidence, and earn XP."
+            : "See live quests around you — your own quests are marked with a gold star."}
+        </p>
       </div>
 
       {permissionBlocked && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
-          <span className="inline-flex items-center gap-2 text-amber-700">
-            <LocateFixed className="h-4 w-4 shrink-0" aria-hidden />
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-frost/30 bg-white/[0.05] px-4 py-3 text-sm">
+          <span className="inline-flex items-center gap-2 text-bone">
+            <LocateFixed className="h-4 w-4 shrink-0 text-cyan" aria-hidden />
             Enable location access to discover quests near you.
           </span>
           <Button
@@ -150,7 +151,10 @@ export function DashboardQuestSection({ mode, onGoToMyQuests, onCreateQuest }: D
         </div>
       )}
 
-      <div id="quest-map" className="relative h-[24rem] w-full overflow-hidden rounded-2xl border border-border shadow-sm sm:h-[28rem]">
+      <div
+        id="quest-map"
+        className="relative h-[24rem] w-full overflow-hidden rounded-[20px] border border-frost/25 shadow-[0_28px_60px_-40px_rgba(0,0,0,0.95)] ring-1 ring-white/5 sm:h-[28rem]"
+      >
         <QuestMap
           ref={mapHandleRef}
           quests={mapQuests}
@@ -170,26 +174,26 @@ export function DashboardQuestSection({ mode, onGoToMyQuests, onCreateQuest }: D
       </div>
 
       <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-            <Compass className="h-5 w-5 text-primary" aria-hidden />
-            Nearby quests
-          </h3>
-          <span className="text-xs font-medium text-muted-foreground">
-            {nearby.isLoading
-              ? "Loading…"
-              : `${mapQuests.length} quest${mapQuests.length === 1 ? "" : "s"}`}
-            {mode === "teacher" && ownQuests.ids.length > 0 ? ` · ${ownQuests.ids.length} yours` : ""}
-          </span>
-        </div>
+        <SectionHead
+          kicker="Mission board"
+          title="Nearby quests"
+          right={
+            <span className="font-micro text-[10px] uppercase text-ash">
+              {nearby.isLoading
+                ? "Loading…"
+                : `${mapQuests.length} quest${mapQuests.length === 1 ? "" : "s"}`}
+              {mode === "teacher" && ownQuests.ids.length > 0 ? ` · ${ownQuests.ids.length} yours` : ""}
+            </span>
+          }
+        />
 
         {nearby.error && (
-          <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p role="alert" className="rounded-[2px] border border-destructive/40 bg-destructive/10 px-3 py-2 font-micro text-[11px] uppercase text-destructive">
             {nearby.error}
           </p>
         )}
         {acceptMutation.error && (
-          <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p role="alert" className="rounded-[2px] border border-destructive/40 bg-destructive/10 px-3 py-2 font-micro text-[11px] uppercase text-destructive">
             {acceptMutation.error instanceof Error ? acceptMutation.error.message : "Could not accept this quest."}
           </p>
         )}
@@ -197,13 +201,18 @@ export function DashboardQuestSection({ mode, onGoToMyQuests, onCreateQuest }: D
         {nearby.isLoading && mapQuests.length === 0 ? (
           <div className="grid gap-3">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="h-24 animate-pulse rounded-lg border border-border bg-muted/50" />
+              <div
+                key={i}
+                className="h-24 animate-pulse rounded-[10px] border border-frost/15 bg-white/[0.04] shadow-[0_16px_36px_-30px_rgba(0,0,0,0.9)]"
+              />
             ))}
           </div>
         ) : mapQuests.length === 0 && !nearby.isLoading ? (
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-8 text-center text-sm text-muted-foreground">
-            <Search className="h-6 w-6 opacity-70" aria-hidden />
-            <p>No quests available in this area yet. Try expanding your search radius.</p>
+          <div className="flex flex-col items-center gap-3 rounded-[10px] border border-frost/20 bg-white/[0.03] px-4 py-8 text-center">
+            <Search className="h-6 w-6 text-ash opacity-70" aria-hidden />
+            <p className="font-micro text-[11px] leading-[1.6] uppercase text-ash">
+              No quests available in this area yet. Try expanding your search radius.
+            </p>
             {maxRadiusOption && radius < maxRadiusOption.value && (
               <Button
                 size="sm"
@@ -237,8 +246,9 @@ export function DashboardQuestSection({ mode, onGoToMyQuests, onCreateQuest }: D
         )}
 
         {mode === "student" && activeProgress.length > 0 && (
-          <p className="text-xs text-muted-foreground">
-            {activeProgress.length} active quest{activeProgress.length === 1 ? "" : "s"} accepted — emerald markers on the map are yours.
+          <p className="font-micro text-[10px] uppercase leading-[1.6] text-ash">
+            {activeProgress.length} active quest{activeProgress.length === 1 ? "" : "s"} accepted — open a marker on the
+            map to jump back to your quest log.
           </p>
         )}
       </div>

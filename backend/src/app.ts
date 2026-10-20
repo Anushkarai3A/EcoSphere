@@ -7,6 +7,7 @@ import { pinoHttp } from "pino-http";
 import { env } from "./config/env.js";
 import { installBigIntSafeJson } from "./lib/json.js";
 import { logger } from "./lib/logger.js";
+import { resolveTrustProxy } from "./lib/proxyTrust.js";
 import { errorHandler, notFoundHandler } from "./middlewares/error.middleware.js";
 import apiRoutes from "./routes/index.js";
 import healthRoutes from "./routes/health.routes.js";
@@ -43,7 +44,7 @@ export function createApp(): Express {
   app.disable("x-powered-by");
   // Explicit hop count (never `true`): rate limiting keys on req.ip, which must
   // not be spoofable via X-Forwarded-For from untrusted proxies.
-  app.set("trust proxy", env.TRUST_PROXY_HOPS > 0 ? env.TRUST_PROXY_HOPS : false);
+  app.set("trust proxy", resolveTrustProxy(env.TRUST_PROXY_HOPS));
 
   app.use(helmet());
   // Logging must come before body parsing: a malformed-JSON error is routed to the

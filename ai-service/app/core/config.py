@@ -1,4 +1,42 @@
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+KNOWN_DEVELOPMENT_SERVICE_TOKENS = frozenset(
+    {
+        "dev-ai-token",
+        "change-me",
+        "changeme",
+        "secret",
+        "your-secret-here",
+    }
+)
+
+
+def _is_insecure_service_token(token: str) -> bool:
+    normalized = token.strip().lower()
+    return (
+        not normalized
+        or normalized in KNOWN_DEVELOPMENT_SERVICE_TOKENS
+        or normalized.startswith("change-me")
+        or normalized.startswith("your-")
+        or "do-not-use" in normalized
+    )
+
+
+def validate_production_secrets(settings: "Settings") -> None:
+    """Fail production startup on the known development shared secret.
+
+    Error text names the variable only; the configured value is never included.
+    Development keeps using the convenience default.
+    """
+    if settings.environment != "production":
+        return
+    if _is_insecure_service_token(settings.service_token):
+        raise RuntimeError(
+            "Refusing to start in production with the default or a placeholder "
+            "AI_SERVICE_TOKEN. Set a unique shared secret."
+        )
 
 
 class Settings(BaseSettings):
@@ -10,6 +48,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_prefix="AI_", extra="ignore")
 
+    environment: Literal["development", "test", "production"] = "development"
     app_name: str = "ecosphere-ai"
     version: str = "0.1.0"
     model_path: str = "models/yolov8n.pt"
@@ -22,11 +61,12 @@ class Settings(BaseSettings):
     service_token: str = "dev-ai-token"
 
     # --- LLM generation (quiz / feedback / scripts) ---
-    llm_provider: str = "groq"  # "groq" | "openai"
+    llm_provider: str = "groq"  # only "groq" is supported
     groq_api_key: str = ""
     groq_base_url: str = "https://api.groq.com/openai/v1"
-    groq_model: str = "openai/gpt-oss-120b"
-    llm_max_tokens: int = 2048
+    groq_model: str = "openai/gpt-oss-120b"          # primary model (120b)
+    groq_fallback_model: str = "openai/gpt-oss-20b"  # lighter fallback used on 3rd retry
+    llm_max_tokens: int = 4096  # gpt-oss is a reasoning model: reasoning tokens count toward this budget
     llm_timeout: int = 120  # seconds; OpenAI client timeout for remote API
 
     # --- extraction / generation budgets ---
@@ -42,3 +82,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+validate_production_secrets(settings)

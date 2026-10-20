@@ -9,14 +9,64 @@ import {
   ExternalLink,
   FileCheck,
   FileText,
+  Loader2,
   RefreshCw,
   Send,
-  Users,
   X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { assignmentApi } from "@/lib/api";
 import type { Assignment, AssignmentSubmission, RubricCriterion } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { DisplayTitle, MetaRow, Rule, SectionHead } from "@/components/gallery";
+import { Logo } from "@/components/Logo";
+import { cn } from "@/lib/utils";
+
+const chipBase =
+  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-micro text-[10px] uppercase tracking-[0.06em]";
+
+const statusTone: Record<string, string> = {
+  DRAFT: "border-frost/30 bg-white/[0.06] text-ash",
+  PUBLISHED: "border-emerald/40 bg-emerald/10 text-emerald",
+  SCHEDULED: "border-cyan/40 bg-cyan/10 text-cyan",
+  CLOSED: "border-gold/40 bg-gold/10 text-gold",
+};
+
+const tileTone = {
+  emerald: { box: "border-emerald/35 bg-emerald/10", text: "text-emerald" },
+  cyan: { box: "border-cyan/35 bg-cyan/10", text: "text-cyan" },
+  gold: { box: "border-gold/35 bg-gold/10", text: "text-gold" },
+  ash: { box: "border-frost/30 bg-white/[0.06]", text: "text-ash" },
+} as const;
+
+const fieldClass =
+  "w-full rounded-[6px] border border-frost/40 bg-deep px-3.5 py-2.5 text-sm text-bone shadow-[inset_0_1px_2px_rgba(3,18,26,0.6)] placeholder:text-ash/70 transition-colors focus-visible:border-cyan/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/35";
+
+function MetricTile({
+  icon: Icon,
+  value,
+  label,
+  tone = "emerald",
+}: {
+  icon: LucideIcon;
+  value: string;
+  label: string;
+  tone?: keyof typeof tileTone;
+}) {
+  const t = tileTone[tone];
+  return (
+    <div className="glass-panel flex items-start justify-between gap-3 rounded-[10px] p-4">
+      <div className="min-w-0">
+        <p className="font-title text-[34px] font-semibold leading-none text-bone">{value}</p>
+        <p className="mt-2 font-micro text-[10px] uppercase tracking-[0.08em] text-ash">{label}</p>
+      </div>
+      <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-full border", t.box)}>
+        <Icon className={cn("h-4 w-4", t.text)} aria-hidden />
+      </span>
+    </div>
+  );
+}
 
 export function TeacherAssignmentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -97,20 +147,24 @@ export function TeacherAssignmentDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-        <RefreshCw className="h-8 w-8 animate-spin mb-3 text-primary" />
-        <p className="text-sm font-medium">Loading assignment dashboard...</p>
+      <div className="flex flex-col items-center justify-center gap-3 py-20">
+        <RefreshCw className="h-6 w-6 animate-spin text-emerald" aria-hidden />
+        <p className="font-micro text-[11px] uppercase text-ash">Loading assignment dashboard...</p>
       </div>
     );
   }
 
   if (error || !assignment) {
     return (
-      <div className="space-y-4 max-w-xl mx-auto py-12 text-center">
-        <div className="rounded-full bg-destructive/10 p-4 text-destructive inline-block">
-          <AlertCircle className="h-8 w-8" />
-        </div>
-        <h2 className="text-xl font-bold">{error || "Assignment not found"}</h2>
+      <div className="mx-auto flex max-w-xl flex-col items-center gap-4 py-16 text-center">
+        <Logo className="h-14 w-14 opacity-80" />
+        <span className="inline-flex items-center gap-2 rounded-full border border-destructive/40 bg-destructive/10 px-3 py-1 font-micro text-[10px] uppercase text-destructive">
+          <AlertCircle className="h-3.5 w-3.5" aria-hidden />
+          Load failed
+        </span>
+        <h2 className="font-display text-[26px] font-medium leading-[1.15] text-bone">
+          {error || "Assignment not found"}
+        </h2>
         <Button onClick={() => navigate("/app/teacher/assignments")}>Back to Assignments</Button>
       </div>
     );
@@ -121,72 +175,73 @@ export function TeacherAssignmentDetailPage() {
   const pendingCount = submissions.filter((s) => s.gradeStatus === "UNGRADED").length;
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12">
-      {/* Back & Title Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-5 pb-16 sm:px-10">
+      {/* HERO */}
+      <section className="flex flex-col gap-5 pt-12 animate-gallery-rise">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/app/teacher/assignments")} className="h-9 w-9">
-            <ArrowLeft className="h-4 w-4" />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/app/teacher/assignments")}
+            className="h-9 w-9"
+            aria-label="Back to assignments"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
           </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-primary">{assignment.subject || "Assignment"}</span>
-              <span className="rounded-md bg-accent px-2 py-0.5 text-xs font-medium">{assignment.type}</span>
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight">{assignment.title}</h1>
-          </div>
+          <MetaRow>
+            <span>{assignment.subject || "Assignment"}</span>
+            <span className={cn(chipBase, "border-frost/30 bg-white/[0.06] text-ash")}>
+              {assignment.type.replace("_", " ")}
+            </span>
+          </MetaRow>
         </div>
-
-        <div className="flex items-center gap-2">
+        <DisplayTitle lines={["REVIEW"]} />
+        <p className="max-w-2xl font-display text-[30px] font-medium leading-[1.1] text-bone">{assignment.title}</p>
+        <div className="flex flex-wrap items-center gap-3">
           {assignment.status === "DRAFT" ? (
             <Button
               onClick={async () => {
                 await assignmentApi.publish(assignment.id);
                 fetchDetail();
               }}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+              className="gap-2"
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-4 w-4" aria-hidden />
               Publish Now
             </Button>
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Published
+            <span className={cn(chipBase, statusTone[assignment.status] ?? "border-emerald/40 bg-emerald/10 text-emerald")}>
+              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+              {assignment.status === "PUBLISHED" ? "Published" : assignment.status}
             </span>
           )}
         </div>
-      </div>
+      </section>
 
-      {/* Assignment Overview Metrics */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-          <p className="text-xs font-medium text-muted-foreground">Total Submissions</p>
-          <p className="text-xl font-bold mt-1">{submissions.length}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-          <p className="text-xs font-medium text-muted-foreground">Pending Review</p>
-          <p className="text-xl font-bold text-amber-500 mt-1">{pendingCount}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-          <p className="text-xs font-medium text-muted-foreground">Graded</p>
-          <p className="text-xl font-bold text-emerald-500 mt-1">{gradedCount}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-          <p className="text-xs font-medium text-muted-foreground">Maximum Marks</p>
-          <p className="text-xl font-bold text-primary mt-1">{assignment.maxMarks}</p>
-        </div>
-      </div>
+      <Rule />
 
-      {/* Instructions & Resources Card */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
-        <h3 className="text-base font-semibold border-b border-border pb-2">Instructions & Configuration</h3>
-        <p className="text-sm text-foreground/90 whitespace-pre-line">{assignment.description}</p>
+      {/* METRICS */}
+      <section className="flex flex-col gap-5">
+        <SectionHead kicker="Overview" title="Submissions at a glance" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <MetricTile icon={FileCheck} value={String(submissions.length)} label="Total submissions" />
+          <MetricTile icon={Loader2} value={String(pendingCount)} label="Pending review" tone="gold" />
+          <MetricTile icon={CheckCircle2} value={String(gradedCount)} label="Graded" tone="cyan" />
+          <MetricTile icon={Award} value={String(assignment.maxMarks)} label="Maximum marks" tone="ash" />
+        </div>
+      </section>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-border/50 text-xs">
+      <Rule />
+
+      {/* INSTRUCTIONS */}
+      <section className="glass-panel flex flex-col gap-4 rounded-[10px] p-5 sm:p-6">
+        <h3 className="font-display text-[22px] font-medium leading-tight text-bone">Instructions & configuration</h3>
+        <p className="whitespace-pre-line text-sm leading-[1.7] text-ash">{assignment.description}</p>
+
+        <div className="grid grid-cols-1 gap-4 border-t border-frost/15 pt-4 font-micro text-[11px] sm:grid-cols-3">
           <div>
-            <span className="font-semibold text-muted-foreground block">Due Date:</span>
-            <span className="font-medium text-foreground">
+            <span className="block uppercase text-ash">Due date</span>
+            <span className="mt-1 block text-bone">
               {new Date(assignment.dueAt).toLocaleString(undefined, {
                 month: "short",
                 day: "numeric",
@@ -197,20 +252,22 @@ export function TeacherAssignmentDetailPage() {
             </span>
           </div>
           <div>
-            <span className="font-semibold text-muted-foreground block">Submission Format:</span>
-            <span className="font-medium text-foreground">{assignment.submissionType}</span>
+            <span className="block uppercase text-ash">Submission format</span>
+            <span className="mt-1 block text-bone">{assignment.submissionType}</span>
           </div>
           <div>
-            <span className="font-semibold text-muted-foreground block">XP Reward:</span>
-            <span className="font-bold text-emerald-500">+{Number(assignment.xpReward)} XP</span>
+            <span className="block uppercase text-ash">XP reward</span>
+            <span className="mt-1 block font-title text-[16px] font-semibold tracking-normal text-gold">
+              +{Number(assignment.xpReward)} XP
+            </span>
           </div>
         </div>
 
         {/* Attached Learning Materials */}
         {assignment.materials && assignment.materials.length > 0 && (
-          <div className="pt-3 border-t border-border/50">
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              Learning Resources ({assignment.materials.length})
+          <div className="border-t border-frost/15 pt-4">
+            <h4 className="mb-2 font-micro text-[10px] uppercase tracking-[0.08em] text-ash">
+              Learning resources ({assignment.materials.length})
             </h4>
             <div className="flex flex-wrap gap-2">
               {assignment.materials.map((m) => (
@@ -219,73 +276,71 @@ export function TeacherAssignmentDetailPage() {
                   href={m.url || "#"}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium hover:border-primary transition-colors"
+                  className={cn(chipBase, "transition-colors hover:border-emerald/60 hover:text-emerald")}
                 >
-                  <FileText className="h-3.5 w-3.5 text-primary" />
+                  <FileText className="h-3.5 w-3.5" aria-hidden />
                   {m.title}
-                  <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                  <ExternalLink className="h-3 w-3" aria-hidden />
                 </a>
               ))}
             </div>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Student Submissions List Table */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
-            Student Submissions
-          </h2>
-          <span className="text-xs text-muted-foreground">{submissions.length} total entries</span>
-        </div>
+      <Rule />
+
+      {/* STUDENT SUBMISSIONS */}
+      <section className="glass-panel flex flex-col gap-4 rounded-[10px] p-5 sm:p-6">
+        <SectionHead
+          kicker="Submissions"
+          title="Student submissions"
+          right={<span className="font-micro text-[10px] uppercase text-ash">{submissions.length} total entries</span>}
+        />
 
         {submissions.length === 0 ? (
-          <div className="py-12 text-center text-muted-foreground">
-            <FileCheck className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-            <p className="text-sm font-medium">No submissions received yet.</p>
+          <div className="flex flex-col items-center gap-3 rounded-[10px] border border-dashed border-frost/25 px-4 py-12 text-center">
+            <Logo className="h-12 w-12 opacity-80" />
+            <p className="font-micro text-[11px] uppercase text-ash">No submissions received yet.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
-                  <th className="py-3 px-3">Student</th>
-                  <th className="py-3 px-3">Attempt</th>
-                  <th className="py-3 px-3">Status</th>
-                  <th className="py-3 px-3">Submitted At</th>
-                  <th className="py-3 px-3">Marks</th>
-                  <th className="py-3 px-3 text-right">Action</th>
+          <div className="-mx-5 overflow-x-auto px-5 sm:-mx-6 sm:px-6">
+            <table className="w-full min-w-[760px] text-left text-sm">
+              <thead className="border-b border-frost/25 font-micro text-[10px] uppercase tracking-[0.08em] text-ash">
+                <tr>
+                  <th className="px-3 py-3 font-normal">Student</th>
+                  <th className="px-3 py-3 font-normal">Attempt</th>
+                  <th className="px-3 py-3 font-normal">Status</th>
+                  <th className="px-3 py-3 font-normal">Submitted at</th>
+                  <th className="px-3 py-3 font-normal">Marks</th>
+                  <th className="px-3 py-3 text-right font-normal">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody>
                 {submissions.map((sub) => {
                   const studentName = sub.student ? `${sub.student.firstName} ${sub.student.lastName}` : "Unknown Student";
                   const isGraded = sub.gradeStatus === "GRADED";
                   const isReturned = sub.gradeStatus === "RETURNED";
 
                   return (
-                    <tr key={sub.id} className="hover:bg-accent/30 transition-colors">
-                      <td className="py-3 px-3">
-                        <div className="font-semibold text-foreground">{studentName}</div>
-                        <div className="text-xs text-muted-foreground">{sub.student?.email}</div>
+                    <tr key={sub.id} className="border-b border-frost/10 transition-colors last:border-0 hover:bg-white/[0.04]">
+                      <td className="px-3 py-3">
+                        <div className="font-display text-[16px] font-medium leading-tight text-bone">{studentName}</div>
+                        <div className="mt-1 font-micro text-[10px] uppercase text-ash">{sub.student?.email}</div>
                       </td>
-                      <td className="py-3 px-3">
-                        <span className="rounded-md bg-accent px-2 py-0.5 text-xs font-mono">Attempt {sub.attempt}</span>
+                      <td className="px-3 py-3">
+                        <span className={cn(chipBase, "border-frost/30 bg-white/[0.06] text-ash")}>
+                          Attempt {sub.attempt}
+                        </span>
                       </td>
-                      <td className="py-3 px-3">
+                      <td className="px-3 py-3">
                         {sub.submissionStatus === "LATE" ? (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-red-500/15 px-2 py-0.5 text-xs font-semibold text-red-500">
-                            LATE
-                          </span>
+                          <span className={cn(chipBase, "border-gold/40 bg-gold/10 text-gold")}>Late</span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-500">
-                            ON TIME
-                          </span>
+                          <span className={cn(chipBase, "border-emerald/40 bg-emerald/10 text-emerald")}>On time</span>
                         )}
                       </td>
-                      <td className="py-3 px-3 text-xs text-muted-foreground">
+                      <td className="px-3 py-3 font-micro text-[10px] uppercase text-ash">
                         {new Date(sub.submittedAt).toLocaleString(undefined, {
                           month: "short",
                           day: "numeric",
@@ -293,20 +348,21 @@ export function TeacherAssignmentDetailPage() {
                           minute: "2-digit",
                         })}
                       </td>
-                      <td className="py-3 px-3">
+                      <td className="px-3 py-3">
                         {isGraded ? (
-                          <span className="font-bold text-emerald-500">
-                            {sub.score} / {assignment.maxMarks}
+                          <span className="font-title text-[18px] font-semibold leading-none text-gold">
+                            {sub.score}
+                            <span className="text-bone/70"> / {assignment.maxMarks}</span>
                           </span>
                         ) : isReturned ? (
-                          <span className="text-xs font-medium text-amber-500">Returned</span>
+                          <span className={cn(chipBase, "border-gold/40 bg-gold/10 text-gold")}>Returned</span>
                         ) : (
-                          <span className="text-xs text-muted-foreground font-medium">Ungraded</span>
+                          <span className={cn(chipBase, "border-frost/30 bg-white/[0.06] text-ash")}>Ungraded</span>
                         )}
                       </td>
-                      <td className="py-3 px-3 text-right">
-                        <Button variant="outline" size="sm" onClick={() => openGradingModal(sub)} className="gap-1.5">
-                          <FileCheck className="h-3.5 w-3.5" />
+                      <td className="px-3 py-3 text-right">
+                        <Button variant="outline" size="sm" onClick={() => openGradingModal(sub)}>
+                          <FileCheck className="h-3.5 w-3.5" aria-hidden />
                           {isGraded ? "Edit Grade" : "Review & Grade"}
                         </Button>
                       </td>
@@ -317,29 +373,30 @@ export function TeacherAssignmentDetailPage() {
             </table>
           </div>
         )}
-      </div>
+      </section>
 
       {/* Grading Modal */}
       {gradingSubmission && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-xl space-y-5">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <div>
-                <h3 className="text-lg font-bold">Grade Submission</h3>
-                <p className="text-xs text-muted-foreground">
-                  {gradingSubmission.student?.firstName} {gradingSubmission.student?.lastName} (Attempt #{gradingSubmission.attempt})
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="glass-panel max-h-[90vh] w-full max-w-2xl space-y-5 overflow-y-auto rounded-[20px] bg-[#04171d]/95 p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-3 border-b border-frost/15 pb-3">
+              <div className="min-w-0">
+                <h3 className="font-display text-[22px] font-medium leading-tight text-bone">Grade submission</h3>
+                <p className="mt-1 font-micro text-[10px] uppercase text-ash">
+                  {gradingSubmission.student?.firstName} {gradingSubmission.student?.lastName} (Attempt #
+                  {gradingSubmission.attempt})
                 </p>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setGradingSubmission(null)} className="h-8 w-8">
-                <X className="h-4 w-4" />
+              <Button variant="ghost" size="icon" onClick={() => setGradingSubmission(null)} className="h-8 w-8" aria-label="Close">
+                <X className="h-4 w-4" aria-hidden />
               </Button>
             </div>
 
             {/* Submission Content Review */}
-            <div className="rounded-xl border border-border bg-background p-4 space-y-3">
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Submitted Work</h4>
+            <div className="space-y-3 rounded-[10px] border border-frost/20 bg-white/[0.04] p-4">
+              <h4 className="font-micro text-[10px] uppercase tracking-[0.08em] text-ash">Submitted work</h4>
               {gradingSubmission.text && (
-                <div className="rounded-lg bg-card p-3 text-sm whitespace-pre-line border border-border/60">
+                <div className="whitespace-pre-line rounded-[10px] border border-frost/15 bg-deep/60 p-3 text-sm text-bone">
                   {gradingSubmission.text}
                 </div>
               )}
@@ -350,9 +407,9 @@ export function TeacherAssignmentDetailPage() {
                     href={gradingSubmission.externalUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                    className="inline-flex items-center gap-1.5 font-micro text-[11px] text-cyan hover:underline"
                   >
-                    <ExternalLink className="h-3.5 w-3.5" />
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden />
                     {gradingSubmission.externalUrl}
                   </a>
                 </div>
@@ -366,9 +423,9 @@ export function TeacherAssignmentDetailPage() {
                       href={asset.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium hover:border-primary"
+                      className={cn(chipBase, "transition-colors hover:border-emerald/60 hover:text-emerald")}
                     >
-                      <Download className="h-3.5 w-3.5 text-primary" />
+                      <Download className="h-3.5 w-3.5" aria-hidden />
                       {asset.filename || "Uploaded File"}
                     </a>
                   ))}
@@ -379,24 +436,27 @@ export function TeacherAssignmentDetailPage() {
             {/* Interactive Rubric Evaluator */}
             {assignment.rubric && Array.isArray(assignment.rubric) && assignment.rubric.length > 0 && (
               <div className="space-y-3">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Rubric Evaluation</h4>
+                <h4 className="font-micro text-[10px] uppercase tracking-[0.08em] text-ash">Rubric evaluation</h4>
                 <div className="space-y-2">
                   {assignment.rubric.map((r: RubricCriterion, idx: number) => (
-                    <div key={idx} className="flex items-center justify-between gap-4 rounded-lg border border-border bg-background p-3">
-                      <div>
-                        <div className="text-xs font-bold text-foreground">{r.criterion}</div>
-                        {r.description && <div className="text-[11px] text-muted-foreground">{r.description}</div>}
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between gap-4 rounded-[10px] border border-frost/20 bg-white/[0.04] p-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm text-bone">{r.criterion}</div>
+                        {r.description && <div className="mt-0.5 text-[11px] text-ash">{r.description}</div>}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <input
+                      <div className="flex shrink-0 items-center gap-2">
+                        <Input
                           type="number"
                           min={0}
                           max={r.maxMarks}
                           value={rubricScores[idx] ?? r.maxMarks}
                           onChange={(e) => handleRubricScoreChange(idx, Number(e.target.value))}
-                          className="w-16 rounded-md border border-border bg-card px-2 py-1 text-xs font-bold text-primary text-center focus:outline-none focus:ring-1 focus:ring-primary"
+                          className="h-9 w-16 px-2 text-center text-xs"
                         />
-                        <span className="text-xs text-muted-foreground">/ {r.maxMarks}</span>
+                        <span className="font-micro text-[10px] uppercase text-ash">/ {r.maxMarks}</span>
                       </div>
                     </div>
                   ))}
@@ -406,58 +466,55 @@ export function TeacherAssignmentDetailPage() {
 
             {/* Score & Notes Form */}
             <div className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-                  Final Score (out of {assignment.maxMarks})
+              <div className="space-y-2">
+                <label htmlFor="grade-score" className="block font-micro text-[10px] uppercase leading-none tracking-[0.16em] text-ash">
+                  Final score (out of {assignment.maxMarks})
                 </label>
-                <input
+                <Input
+                  id="grade-score"
                   type="number"
                   min={0}
                   max={assignment.maxMarks}
                   value={gradeScore}
                   onChange={(e) => setGradeScore(Number(e.target.value))}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base font-bold text-primary focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-                  Teacher Feedback / Notes
+              <div className="space-y-2">
+                <label htmlFor="grade-notes" className="block font-micro text-[10px] uppercase leading-none tracking-[0.16em] text-ash">
+                  Teacher feedback / notes
                 </label>
                 <textarea
+                  id="grade-notes"
                   rows={3}
                   placeholder="Provide constructive feedback for the student..."
                   value={gradeNotes}
                   onChange={(e) => setGradeNotes(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background p-3 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                  className={cn(fieldClass, "resize-y")}
                 />
               </div>
 
-              <div className="flex items-center gap-2 pt-1">
+              <div className="flex items-start gap-2 pt-1">
                 <input
                   type="checkbox"
                   id="returnResub"
                   checked={returnForResubmission}
                   onChange={(e) => setReturnForResubmission(e.target.checked)}
-                  className="h-4 w-4 rounded border-border text-amber-500 focus:ring-amber-500"
+                  className="mt-0.5 h-4 w-4 rounded-[2px] border-frost/40 accent-emerald"
                 />
-                <label htmlFor="returnResub" className="text-xs font-medium text-foreground">
+                <label htmlFor="returnResub" className="font-micro text-[11px] uppercase text-bone">
                   Return to student for resubmission (Requires revision)
                 </label>
               </div>
             </div>
 
             {/* Modal Footer Actions */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+            <div className="flex flex-col-reverse gap-3 border-t border-frost/15 pt-4 sm:flex-row sm:items-center sm:justify-end">
               <Button variant="ghost" onClick={() => setGradingSubmission(null)}>
                 Cancel
               </Button>
-              <Button
-                disabled={gradingSubmitting}
-                onClick={handleGradeSubmit}
-                className="gap-2 bg-emerald-600 hover:bg-emerald-700"
-              >
-                <Award className="h-4 w-4" />
+              <Button disabled={gradingSubmitting} onClick={handleGradeSubmit} className="gap-2">
+                <Award className="h-4 w-4" aria-hidden />
                 {gradingSubmitting ? "Saving Grade..." : "Submit Grade & Award XP"}
               </Button>
             </div>

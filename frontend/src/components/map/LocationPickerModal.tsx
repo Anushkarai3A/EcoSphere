@@ -28,8 +28,8 @@ const PICKER_DEFAULT_CENTER = { lat: 28.6139, lng: 77.209 };
 
 const MARKER_CSS = `
 .picker-marker { position: relative; width: 30px; height: 30px; cursor: move; }
-.picker-pin-ring { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 34px; height: 34px; border-radius: 9999px; background: rgba(16,185,129,0.25); }
-.picker-pin { position: absolute; left: 50%; bottom: 1px; transform: translateX(-50%); width: 18px; height: 18px; border-radius: 9999px; background: #10b981; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+.picker-pin-ring { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 34px; height: 34px; border-radius: 9999px; background: rgba(34,211,238,0.28); box-shadow: 0 0 16px rgba(34,211,238,0.55); }
+.picker-pin { position: absolute; left: 50%; bottom: 1px; transform: translateX(-50%); width: 18px; height: 18px; border-radius: 9999px; background: #10B981; border: 3px solid #f2fbf8; box-shadow: 0 4px 12px rgba(0,0,0,0.6); }
 `;
 
 export function LocationPickerModal({ open, initial, onClose, onConfirm }: LocationPickerModalProps) {
@@ -69,35 +69,40 @@ export function LocationPickerModal({ open, initial, onClose, onConfirm }: Locat
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">
-        <div className="flex items-center justify-between border-b border-border px-5 py-3">
-          <h2 className="flex items-center gap-2 font-semibold">
-            <MapPin className="h-5 w-5 text-primary" aria-hidden />
-            Select Quest Location
-          </h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="glass-strong flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-[20px] border border-frost/25 text-bone">
+        <div className="flex items-center justify-between gap-3 border-b border-frost/15 px-5 py-4">
+          <div className="min-w-0">
+            <p className="font-micro text-[10px] uppercase tracking-[0.14em] text-emerald">Map marker</p>
+            <h2 className="mt-1.5 flex items-center gap-2 font-display text-[20px] font-medium text-bone">
+              <MapPin className="h-5 w-5 shrink-0 text-cyan" aria-hidden />
+              Select Quest Location
+            </h2>
+          </div>
           <Button type="button" variant="ghost" size="sm" onClick={onClose} aria-label="Close">
             <X className="h-4 w-4" aria-hidden />
           </Button>
         </div>
+
         <div className="flex flex-col gap-3 p-4">
-          <div className="relative h-[44vh] min-h-[280px] overflow-hidden rounded-lg border border-border">
+          <div className="relative h-[44vh] min-h-[280px] overflow-hidden rounded-[10px] border border-frost/25">
             <PickerMap initialLat={pickerInitial?.lat} initialLng={pickerInitial?.lng} onPick={handlePick} />
           </div>
-          <div className="flex items-center gap-2 rounded-md bg-muted/60 px-3 py-2 text-sm">
-            <MapPin className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+          <div className="flex items-center gap-2 rounded-[10px] border border-frost/25 bg-white/[0.04] px-3 py-2.5 text-sm">
+            <MapPin className="h-4 w-4 shrink-0 text-cyan" aria-hidden />
             {picked ? (
               <>
                 <span className="min-w-0 flex-1 truncate">{label ?? `${picked.lat.toFixed(5)}, ${picked.lng.toFixed(5)}`}</span>
-                {labelBusy && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" aria-hidden />}
-                <span className="shrink-0 text-xs text-muted-foreground">{picked.lat.toFixed(5)}, {picked.lng.toFixed(5)}</span>
+                {labelBusy && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-ash" aria-hidden />}
+                <span className="shrink-0 font-micro text-[10px] uppercase text-ash">{picked.lat.toFixed(5)}, {picked.lng.toFixed(5)}</span>
               </>
             ) : (
-              <span className="text-muted-foreground">Click the map or search to drop the quest location.</span>
+              <span className="text-ash">Click the map or search to drop the quest location.</span>
             )}
           </div>
         </div>
-        <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
+
+        <div className="flex flex-wrap justify-end gap-2 border-t border-frost/15 px-5 py-3">
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>
@@ -288,39 +293,39 @@ function PickerSearch({ onPick }: { onPick: (lat: number, lng: number) => void }
   useEffect(() => () => window.clearTimeout(debounceRef.current), []);
 
   return (
-    <div className="rounded-xl border border-border bg-background shadow-lg">
+    <div className="glass-panel overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2">
-        <SearchIcon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        <SearchIcon className="h-4 w-4 shrink-0 text-ash" aria-hidden />
         <input
-          className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+          className="w-full bg-transparent text-sm text-bone outline-none placeholder:text-ash/70"
           placeholder="Search location..."
           value={q}
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
         />
-        {busy && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" aria-hidden />}
+        {busy && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-cyan" aria-hidden />}
         {q && (
           <button
             type="button"
             aria-label="Clear"
             onClick={clear}
-            className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+            className="shrink-0 text-ash transition-colors hover:text-bone"
           >
             <X className="h-4 w-4" aria-hidden />
           </button>
         )}
       </div>
       {open && results.length > 0 && (
-        <ul className="max-h-56 overflow-y-auto border-t border-border py-1">
+        <ul className="max-h-56 overflow-y-auto border-t border-frost/20 py-1">
           {results.map((r) => (
             <li key={r.id}>
               <button
                 type="button"
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bone transition-colors hover:bg-white/[0.06]"
                 onClick={() => select(r)}
               >
-                <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                <MapPin className="h-4 w-4 shrink-0 text-cyan" aria-hidden />
                 <span className="line-clamp-1">{r.name}</span>
               </button>
             </li>

@@ -1,4 +1,4 @@
-"""Quiz generation tests with a mocked LLM.
+﻿"""Quiz generation tests with a mocked LLM.
 
 The mock captures the prompt and returns deterministic JSON, so we can assert:
   - the material text reaches the prompt (different material => different prompt,
@@ -131,3 +131,28 @@ def test_no_questions_raises(monkeypatch) -> None:
     )
     with pytest.raises(quizgen.QuizGenError, match="no questions"):
         quizgen.generate_quiz(_request())
+
+
+def test_generate_quiz_returns_requested_schema_and_count(monkeypatch) -> None:
+    payload = {
+        "detected_topic": "Ecology",
+        "questions": [
+            {
+                "prompt": f"Question {i}?",
+                "options": ["A", "B", "C", "D"],
+                "correct_index": 0,
+                "explanation": "Because the material says so.",
+            }
+            for i in range(5)
+        ],
+    }
+    monkeypatch.setattr(quizgen, "generate_json", lambda prompt, **kwargs: payload)
+
+    response = quizgen.generate_quiz(_request())
+
+    assert len(response.questions) == 5
+    assert response.detected_topic == "Ecology"
+    for question in response.questions:
+        assert len(question.options) == 4
+        assert question.correct_index == 0
+        assert question.explanation

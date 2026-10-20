@@ -18,5 +18,10 @@ async def generate_quiz_endpoint(payload: GenerateQuizRequest) -> GenerateQuizRe
     try:
         return generate_quiz(payload)
     except QuizGenError as exc:
-        log.error("/generate/quiz failed run_id=%s error=%s", payload.run_id, exc)
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        status_code = getattr(exc, "status_code", 502)
+        category = getattr(exc, "category", "generation")
+        log.error(
+            "/generate/quiz failed run_id=%s category=%s status=%s error=%s",
+            payload.run_id, category, status_code, exc,
+        )
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc

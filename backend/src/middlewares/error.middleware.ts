@@ -1,7 +1,17 @@
+import { Prisma } from "@prisma/client";
 import type { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
 import { AppError } from "../lib/http.js";
 import { logger } from "../lib/logger.js";
+
+/** Connectivity/startup failures are operational, not auth or client errors. */
+function isDatabaseUnavailable(err: unknown): boolean {
+  if (err instanceof Prisma.PrismaClientInitializationError) return true;
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    return ["P1001", "P1002", "P1008", "P1017"].includes(err.code);
+  }
+  return false;
+}
 
 export function notFoundHandler(req: Request, res: Response): void {
   res.status(404).json({
@@ -12,7 +22,8 @@ export function notFoundHandler(req: Request, res: Response): void {
 /**
  * Centralized error middleware. Every thrown/rejected error lands here:
  * ZodError -> 422 with field errors; AppError -> its status/code; body-parse
- * failures -> 400; anything else -> 500 with a logged stack (never leaked).
+ * failures -> 400; database connectivity -> 503; anything else -> 500 with a
+ * logged stack (never leaked).
  * Uses the global logger (never req.log) so errors raised before request
  * logging middleware ran are still recorded.
  */
@@ -58,6 +69,14 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
   }
 
   logger.error({ err, method: req.method, url: req.originalUrl }, "unhandled error");
+
+  if (isDatabaseUnavailable(err)) {
+    res.status(503).json({
+      error: { code: "DATABASE_UNAVAILABLE", message: "Service temporarily unavailable" },
+    });
+    return;
+  }
+
   res.status(500).json({
     error: { code: "INTERNAL_ERROR", message: "Something went wrong" },
   });

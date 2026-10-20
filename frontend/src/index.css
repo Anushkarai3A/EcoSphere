@@ -1,29 +1,53 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
 @import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
 
 /*
- * ECOSPHERE gallery design tokens (Tailwind v4 CSS-first).
- * Monochrome cinematic system: BLACK VOID canvas, WHITE type, MICRO MONO UI,
- * hairline structure. Content/artwork carries color; chrome never does.
+ * ECOSPHERE visual system — anime environmental adventure world.
  *
- * --color-void      #000000  universal page canvas
- * --color-bone      #ffffff  primary text / display type
- * --color-charcoal  #444345  interactive surfaces / buttons
- * --color-frost     #e2e2e2  hairlines / borders / dividers
- * --color-ash       #b8bab9  muted / inactive surfaces
+ * Identity comes from the "Celestial Island Cityscape" world-map artwork:
+ * deep forest / dark navy canvas, emerald land, cyan water glow, purple /
+ * coral / orange / gold quest-category accents. UI is dark glass panels
+ * over a blurred world background — premium game UI, never childish.
+ *
+ * --color-abyss      #03151D  Dark Navy — deepest backdrop
+ * --color-void       #06251F  Deep Forest — page canvas
+ * --color-deep       #0a332b  elevated panel surface
+ * --color-bone       #f2fbf8  primary text (white / soft gray)
+ * --color-charcoal   #0c5a46  primary action fill (deep forest green)
+ * --color-frost      #a5ddd2  hairlines (used at low opacity)
+ * --color-ash        #8fb2b8  muted / secondary text
+ * --color-emerald    #10B981  conservation / success / XP
+ * --color-turquoise  #2DD4BF  community / water accents
+ * --color-cyan       #22D3EE  cleanup / glow / focus
+ * --color-blue       #38BDF8  water markers
+ * --color-purple     #A78BFA  learning markers
+ * --color-gold       #FBBF24  challenges, ranks, rewards
+ * --color-orange     #FB923C  recycling markers
+ * --color-coral      #FB7185  wildlife markers
  */
 :root {
-  --color-void: #000000;
-  --color-bone: #ffffff;
-  --color-charcoal: #444345;
-  --color-frost: #e2e2e2;
-  --color-ash: #b8bab9;
+  --color-abyss: #03151d;
+  --color-void: #06251f;
+  --color-deep: #0a332b;
+  --color-bone: #f2fbf8;
+  --color-charcoal: #0c5a46;
+  --color-frost: #a5ddd2;
+  --color-ash: #8fb2b8;
+  --color-emerald: #10b981;
+  --color-turquoise: #2dd4bf;
+  --color-cyan: #22d3ee;
+  --color-blue: #38bdf8;
+  --color-purple: #a78bfa;
+  --color-gold: #fbbf24;
+  --color-orange: #fb923c;
+  --color-coral: #fb7185;
 
-  /* Display + micro typography (Roobert/GT America Mono proprietary → Inter/JetBrains Mono). */
-  --font-display: "Roobert", "Inter", system-ui, sans-serif;
-  --font-micro: "GT America Mono", "JetBrains Mono", ui-monospace, monospace;
+  /* Display (elegant title face) + micro instrumentation. */
+  --font-title: "Cinzel", "Times New Roman", serif;
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-micro: "JetBrains Mono", ui-monospace, monospace;
 
   /* Spacing scale (4px base). */
   --spacing-4: 4px;
@@ -37,55 +61,65 @@
   --radius-lg: 10px;
   --radius-2xl: 20px;
 
-  /* shadcn compat mapped onto the monochrome system. */
-  --background: #000000;
-  --foreground: #ffffff;
-  --card: #101010;
-  --card-foreground: #ffffff;
-  --popover: #101010;
-  --popover-foreground: #ffffff;
-  --primary: #444345;
+  /* shadcn compat mapped onto the EcoSphere system. */
+  --background: #06251f;
+  --foreground: #f2fbf8;
+  --card: #0a332b;
+  --card-foreground: #f2fbf8;
+  --popover: #0a332b;
+  --popover-foreground: #f2fbf8;
+  --primary: #0c5a46;
   --primary-foreground: #ffffff;
-  --secondary: #1a1a1a;
-  --secondary-foreground: #ffffff;
-  --muted: #1a1a1a;
-  --muted-foreground: #b8bab9;
-  --accent: #1a1a1a;
-  --accent-foreground: #ffffff;
-  --destructive: #e5484d;
-  --border: #e2e2e2;
-  --input: #e2e2e2;
-  --ring: #e2e2e2;
-  --radius: 10px;
+  --secondary: #10343f;
+  --secondary-foreground: #f2fbf8;
+  --muted: #0e3a33;
+  --muted-foreground: #8fb2b8;
+  --accent: #10343f;
+  --accent-foreground: #f2fbf8;
+  --destructive: #fb7185;
+  --border: #2f6670;
+  --input: #2f6670;
+  --ring: #10b981;
+  --radius: 12px;
 }
 
 .dark {
-  --background: #000000;
-  --foreground: #ffffff;
-  --card: #101010;
-  --card-foreground: #ffffff;
-  --popover: #101010;
-  --popover-foreground: #ffffff;
-  --primary: #444345;
+  --background: #06251f;
+  --foreground: #f2fbf8;
+  --card: #0a332b;
+  --card-foreground: #f2fbf8;
+  --popover: #0a332b;
+  --popover-foreground: #f2fbf8;
+  --primary: #0c5a46;
   --primary-foreground: #ffffff;
-  --secondary: #1a1a1a;
-  --secondary-foreground: #ffffff;
-  --muted: #1a1a1a;
-  --muted-foreground: #b8bab9;
-  --accent: #1a1a1a;
-  --accent-foreground: #ffffff;
-  --destructive: #e5484d;
-  --border: #e2e2e2;
-  --input: #e2e2e2;
-  --ring: #e2e2e2;
+  --secondary: #10343f;
+  --secondary-foreground: #f2fbf8;
+  --muted: #0e3a33;
+  --muted-foreground: #8fb2b8;
+  --accent: #10343f;
+  --accent-foreground: #f2fbf8;
+  --destructive: #fb7185;
+  --border: #2f6670;
+  --input: #2f6670;
+  --ring: #10b981;
 }
 
 @theme inline {
+  --color-abyss: var(--color-abyss);
   --color-void: var(--color-void);
+  --color-deep: var(--color-deep);
   --color-bone: var(--color-bone);
   --color-charcoal: var(--color-charcoal);
   --color-frost: var(--color-frost);
   --color-ash: var(--color-ash);
+  --color-emerald: var(--color-emerald);
+  --color-turquoise: var(--color-turquoise);
+  --color-cyan: var(--color-cyan);
+  --color-blue: var(--color-blue);
+  --color-purple: var(--color-purple);
+  --color-gold: var(--color-gold);
+  --color-orange: var(--color-orange);
+  --color-coral: var(--color-coral);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -104,10 +138,11 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --font-title: var(--font-title);
   --font-display: var(--font-display);
   --font-micro: var(--font-micro);
   --text-display: 80px;
-  --leading-display: 0.78;
+  --leading-display: 0.92;
 }
 
 @layer base {
@@ -115,36 +150,63 @@
     @apply border-border outline-ring/50;
   }
   html {
-    background-color: #000000;
+    background-color: #03151d;
+    scroll-behavior: smooth;
   }
   body {
-    @apply bg-void text-bone antialiased;
+    @apply text-bone antialiased;
     font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    /* Solid fallback only — wallpapers live on fixed backdrop layers
+       (WorldBackground / auth-backdrop). An opaque body background would
+       paint OVER those -z-index layers and hide the artwork. */
+    background-color: #03151d;
+  }
+  /* When a backdrop layer is present, body must not paint over it. */
+  body:has(.world-background-layer),
+  body:has(.auth-backdrop) {
+    background-color: transparent;
   }
   ::selection {
-    background: #444345;
+    background: #10b981;
     color: #ffffff;
   }
   :focus-visible {
-    outline: 1px solid #e2e2e2;
+    outline: 1px solid #22d3ee;
     outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #03151d;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1d4a52;
+    border-radius: 8px;
+    border: 2px solid #03151d;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #10b981;
   }
 }
 
-/* Monumental display type: 80px / 0.78 / weight 400, left aligned. */
+/* Monumental title type: the elegant face, weight 600, uppercase stack. */
 @utility text-gallery-display {
-  font-family: var(--font-display);
-  font-size: clamp(48px, 8vw, 80px);
-  line-height: 0.78;
-  letter-spacing: 0;
-  font-weight: 400;
+  font-family: var(--font-title);
+  font-size: clamp(42px, 6.4vw, 80px);
+  line-height: 0.92;
+  letter-spacing: 0.01em;
+  font-weight: 600;
+  text-transform: uppercase;
 }
 
 /* Micro mono UI: 10–12px instrument text. */
 @utility text-gallery-micro {
   font-family: var(--font-micro);
   font-size: 11px;
-  line-height: 1;
+  line-height: 1.4;
   letter-spacing: -0.02em;
   font-weight: 400;
 }
@@ -157,7 +219,7 @@
   font-weight: 400;
 }
 
-/* Signature underline mark: 1px rule, ~40% of the line, never decorative. */
+/* Signature underline mark beneath stacked titles — emerald → cyan hairline. */
 @utility gallery-underline {
   position: relative;
   display: inline-block;
@@ -170,16 +232,85 @@
   bottom: 0;
   width: 40%;
   max-width: 60%;
-  height: 1px;
-  background-color: #e2e2e2;
+  height: 2px;
+  background-image: linear-gradient(90deg, #10b981, #22d3ee);
+  border-radius: 2px;
 }
 
 /* Hairline structural rule. */
 @utility gallery-rule {
-  border-top: 1px solid rgb(226 226 226 / 0.22);
+  border-top: 1px solid rgb(255 255 255 / 0.1);
 }
 
-/* Restrained gallery motion: fade / rise / line reveal. No glow, no bounce. */
+/* Dark glass panel — the signature UI surface over the world art. */
+@utility glass-panel {
+  background-color: rgb(5 25 30 / 0.6);
+  /* Standard property only — a same-value -webkit- twin here gets deduped by
+     Lightning CSS at build time, dropping the unprefixed rule from dist. */
+  backdrop-filter: blur(16px) saturate(130%);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 14px;
+  box-shadow: 0 20px 45px -28px rgba(0, 0, 0, 0.95);
+}
+
+/* Heavier glass — sticky nav / modals. */
+@utility glass-strong {
+  background-color: rgb(3 18 24 / 0.82);
+  backdrop-filter: blur(18px) saturate(140%);
+  border-bottom: 1px solid rgb(255 255 255 / 0.1);
+  box-shadow: 0 12px 30px -22px rgba(0, 0, 0, 0.9);
+}
+
+/* Global world-map backdrop: blurred artwork + dark overlay (content stays sharp). */
+@utility world-backdrop {
+  background-image: url("/assets/world-map.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(12px) saturate(115%);
+  transform: scale(1.08);
+}
+
+/* Mystical Emerald Valley Waterfalls — page wallpaper replacing the plain
+   dark-green canvas. Cover / center / no-repeat / fixed; no blur so the
+   landscape stays visible behind the UI. */
+@utility waterfall-backdrop {
+  background-image: url("/assets/mystical-emerald-valley-waterfalls.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+/* Auth pages: full-viewport Celestial Island Cityscape behind login/register.
+   Solid navy fallback under the image so the waterfall wallpaper can never bleed in. */
+@utility auth-backdrop {
+  background-color: #03151d;
+  background-image: url("/assets/celestial-island-cityscape.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+/* Auth form card: glassmorphic — landscape stays visible through it. */
+@utility auth-glass {
+  background: rgba(10, 30, 35, 0.3);
+  backdrop-filter: blur(16px) saturate(130%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
+}
+
+/* Cyan glow for key type / markers. */
+@utility text-glow {
+  text-shadow: 0 0 22px rgba(34, 211, 238, 0.35);
+}
+
+@utility text-glow-gold {
+  text-shadow: 0 0 22px rgba(251, 191, 36, 0.35);
+}
+
+/* Restrained gallery motion: fade / rise / float / glow. */
 @keyframes gallery-rise {
   from {
     opacity: 0;
@@ -195,8 +326,97 @@
   animation: gallery-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+@keyframes eco-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@utility animate-float {
+  animation: eco-float 6s ease-in-out infinite;
+}
+
+@keyframes eco-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgba(34, 211, 238, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 211, 238, 0);
+  }
+}
+
+@utility animate-pulse-glow {
+  animation: eco-pulse 2.4s ease-out infinite;
+}
+
+@keyframes eco-drift {
+  0% {
+    transform: scale(1.04) translate3d(0, 0, 0);
+  }
+  100% {
+    transform: scale(1.1) translate3d(-1.5%, -1%, 0);
+  }
+}
+
+@utility animate-world-drift {
+  animation: eco-drift 46s ease-in-out infinite alternate;
+}
+
+@keyframes eco-shimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+@utility animate-xp-shimmer {
+  animation: eco-shimmer 2.8s ease-in-out infinite;
+}
+
+@keyframes eco-marker-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@utility animate-marker-bob {
+  animation: eco-marker-bob 2.6s ease-in-out infinite;
+}
+
+/* Soft page entrance — applied to route content wrappers. */
+@keyframes eco-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility animate-page-in {
+  animation: eco-page-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* Respect users who prefer reduced motion. */
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
   *,
   *::before,
   *::after {
