@@ -1,4 +1,4 @@
-"""POST /ai/v1/generate/narration-audio — narration text -> MP3 voiceover bytes."""
+"""POST /ai/v1/generate/narration-audio — narration text -> WAV voiceover bytes."""
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
@@ -23,8 +23,8 @@ class NarrationAudioRequest(BaseModel):
 @router.post("/generate/narration-audio")
 async def narration_audio_endpoint(payload: NarrationAudioRequest) -> Response:
     try:
-        mp3 = synthesize_speech(payload.text, voice=payload.voice)
+        wav = synthesize_speech(payload.text, voice=payload.voice)
     except LLMError as exc:
         log.error("/generate/narration-audio failed: %s", exc)
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-    return Response(content=mp3, media_type="audio/mpeg")
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    return Response(content=wav, media_type="audio/wav")

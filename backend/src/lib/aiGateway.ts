@@ -241,8 +241,8 @@ export async function generateFilmDirection(input: {
 }
 
 /**
- * Proxy narration text to the ai-service TTS voice and return raw MP3 bytes.
- * Throws 502 AI_SERVICE_ERROR with the provider's message (e.g. terms gate).
+ * Proxy narration text to the ai-service TTS voice and return raw WAV bytes.
+ * Preserves provider/config error categories without exposing internals.
  */
 export async function synthesizeNarrationAudio(text: string): Promise<{ bytes: Uint8Array; contentType: string }> {
   const controller = new AbortController();
@@ -265,17 +265,39 @@ export async function synthesizeNarrationAudio(text: string): Promise<{ bytes: U
       } catch {
         detail = await res.text().catch(() => "");
       }
-      throw new AppError(502, "TTS_SERVICE_ERROR", detail || `Voice service responded ${res.status}`);
+      const status = res.status;
+      if (status === 401 || status === 403) {
+        throw new AppError(502, "TTS_AUTH_ERROR", "Voice service authentication failed");
+      }
+      if (status === 429) {
+        throw new AppError(429, "TTS_RATE_LIMITED", detail || "Voice service is rate-limited — retry shortly");
+      }
+      if (status === 503) {
+        throw new AppError(503, "TTS_NOT_CONFIGURED", detail || "Voice service is not configured");
+      }
+      if (status === 504) {
+        throw new AppError(504, "TTS_TIMEOUT", detail || "Voice service timed out");
+      }
+      if (status === 400 || status === 422) {
+        throw new AppError(422, "TTS_INPUT_INVALID", detail || "Voice service rejected the narration text");
+      }
+      throw new AppError(502, "TTS_SERVICE_ERROR", detail || `Voice service responded ${status}`);
     }
     const buffer = await res.arrayBuffer();
     if (buffer.byteLength === 0) {
       throw new AppError(502, "TTS_SERVICE_ERROR", "Voice service returned empty audio");
     }
-    return { bytes: new Uint8Array(buffer), contentType: res.headers.get("content-type") || "audio/mpeg" };
+    return { bytes: new Uint8Array(buffer), contentType: res.headers.get("content-type") || "audio/wav" };
   } catch (err) {
     if (err instanceof AppError) throw err;
-    const reason = err instanceof Error && err.name === "AbortError" ? "timed out" : "unreachable";
-    throw new AppError(502, "TTS_SERVICE_ERROR", `Voice service ${reason} at ${env.AI_SERVICE_URL}`);
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new AppError(504, "TTS_TIMEOUT", "Voice service timed out. Please retry.");
+    }
+    throw new AppError(
+      502,
+      "TTS_SERVICE_ERROR",
+      "Voice service is unreachable. Check that the AI service is running, then retry.",
+    );
   } finally {
     clearTimeout(timeout);
   }

@@ -1143,7 +1143,7 @@ export async function generateStudentAnimation(studentId: string, input: Generat
 }
 
 /**
- * Proxy narration text to the TTS voice. Returns raw MP3 bytes for the
+ * Proxy narration text to the TTS voice. Returns raw WAV bytes for the
  * frontend to mux into the recording. Throws 400 for bad input, 502 with the
  * provider message (e.g. terms gate) when synthesis fails.
  */

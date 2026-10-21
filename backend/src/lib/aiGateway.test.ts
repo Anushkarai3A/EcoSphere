@@ -11,7 +11,7 @@ process.env.AI_SERVICE_URL = "http://127.0.0.1:1";
 
 const { env } = await import("../config/env.js");
 const { AppError } = await import("./http.js");
-const { generateQuizFromText } = await import("./aiGateway.js");
+const { generateQuizFromText, synthesizeNarrationAudio } = await import("./aiGateway.js");
 
 interface CapturedRequest {
   url: string | undefined;
@@ -32,6 +32,42 @@ async function startServer(status: number, responseBody: unknown, delayMs = 0) {
       const timer = setTimeout(() => {
         res.writeHead(status, { "content-type": "application/json" });
         res.end(JSON.stringify(responseBody));
+      }, delayMs);
+      res.on("close", () => clearTimeout(timer));
+    });
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => resolve());
+  });
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+
+  return {
+    baseUrl: `http://127.0.0.1:${(address as AddressInfo).port}`,
+    captured: () => captured,
+    close: () =>
+      new Promise<void>((resolve) => {
+        server.closeAllConnections();
+        server.close(() => resolve());
+      }),
+  };
+}
+
+async function startBinaryServer(status: number, body: Buffer, contentType: string, delayMs = 0) {
+  let captured: CapturedRequest | undefined;
+  const server = http.createServer((req, res) => {
+    let requestBody = "";
+    req.setEncoding("utf8");
+    req.on("data", (chunk: string) => {
+      requestBody += chunk;
+    });
+    req.on("end", () => {
+      captured = { url: req.url, headers: req.headers, body: requestBody };
+      const timer = setTimeout(() => {
+        res.writeHead(status, { "content-type": contentType });
+        res.end(body);
       }, delayMs);
       res.on("close", () => clearTimeout(timer));
     });
@@ -166,4 +202,83 @@ test("reports a refused connection as a safe 502", async () => {
       !err.message.includes("test-service-token") &&
       !err.message.includes(closedUrl),
   );
+});
+
+test("proxies narration WAV bytes with the service token", async () => {
+  const wav = Buffer.from("RIFFtest-wav-bytes");
+  const server = await startBinaryServer(200, wav, "audio/wav");
+
+  try {
+    env.AI_SERVICE_URL = server.baseUrl;
+    const result = await synthesizeNarrationAudio("Save water at home.");
+    const captured = server.captured();
+
+    assert.equal(captured?.headers["x-ai-service-token"], "test-service-token");
+    assert.equal(captured?.url, "/ai/v1/generate/narration-audio");
+    assert.deepEqual(result.bytes, new Uint8Array(wav));
+    assert.equal(result.contentType, "audio/wav");
+    assert.equal(JSON.parse(captured?.body ?? "{}").text, "Save water at home.");
+  } finally {
+    await server.close();
+  }
+});
+
+test("maps an unconfigured TTS provider to 503", async () => {
+  const server = await startServer(503, {
+    detail: "TTS model is not configured. Set AI_TTS_MODEL for the AI service.",
+  });
+
+  try {
+    env.AI_SERVICE_URL = server.baseUrl;
+    await assert.rejects(
+      () => synthesizeNarrationAudio("Save water."),
+      (err: unknown) =>
+        err instanceof AppError &&
+        err.statusCode === 503 &&
+        err.code === "TTS_NOT_CONFIGURED" &&
+        err.message.includes("AI_TTS_MODEL"),
+    );
+  } finally {
+    await server.close();
+  }
+});
+
+test("maps a TTS provider rejection to 502 with safe detail", async () => {
+  const server = await startServer(502, {
+    detail: "Groq rejected the TTS request parameters. Check AI_TTS_FORMAT.",
+  });
+
+  try {
+    env.AI_SERVICE_URL = server.baseUrl;
+    await assert.rejects(
+      () => synthesizeNarrationAudio("Save water."),
+      (err: unknown) =>
+        err instanceof AppError &&
+        err.statusCode === 502 &&
+        err.code === "TTS_SERVICE_ERROR" &&
+        err.message.includes("AI_TTS_FORMAT") &&
+        !err.message.includes(server.baseUrl) &&
+        !err.message.includes("test-service-token"),
+    );
+  } finally {
+    await server.close();
+  }
+});
+
+test("aborts a slow TTS request with 504", async () => {
+  const server = await startBinaryServer(200, Buffer.from("RIFF"), "audio/wav", 400);
+  const previousTimeout = env.AI_TIMEOUT_MS;
+
+  try {
+    env.AI_SERVICE_URL = server.baseUrl;
+    env.AI_TIMEOUT_MS = 25;
+    await assert.rejects(
+      () => synthesizeNarrationAudio("Save water."),
+      (err: unknown) =>
+        err instanceof AppError && err.statusCode === 504 && err.code === "TTS_TIMEOUT",
+    );
+  } finally {
+    env.AI_TIMEOUT_MS = previousTimeout;
+    await server.close();
+  }
 });

@@ -552,7 +552,7 @@ export const studentApi = {
       method: "POST",
       body: JSON.stringify({ error }),
     }),
-  /** Narration voiceover MP3 bytes (throws ApiError with provider message on failure). */
+  /** Narration voiceover WAV bytes (throws ApiError with provider message on failure). */
   fetchNarrationAudio: async (text: string): Promise<Blob> => {
     const headers = new Headers({ "Content-Type": "application/json" });
     const token = getAccessToken();

@@ -69,6 +69,14 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 4096  # gpt-oss is a reasoning model: reasoning tokens count toward this budget
     llm_timeout: int = 120  # seconds; OpenAI client timeout for remote API
 
+    # --- Text-to-speech (video narration) ---
+    # TTS is configured independently from the text LLM. Groq Orpheus currently
+    # accepts WAV only and caps each request at 200 characters.
+    tts_provider: str = "groq"  # only "groq" is supported
+    tts_model: str = "canopylabs/orpheus-v1-english"
+    tts_voice: str = "autumn"
+    tts_format: str = "wav"
+
     # --- extraction / generation budgets ---
     max_extract_chars: int = 120_000  # cap text sent to the LLM per request
     max_quiz_questions: int = 50

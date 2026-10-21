@@ -102,7 +102,7 @@ router.post("/animations/:id/fail", async (req, res) => {
   res.json({ animation: updated });
 });
 
-/** Synthesize narration voiceover (MP3 bytes proxied from the TTS provider) */
+/** Synthesize narration voiceover (WAV bytes proxied from the TTS provider) */
 router.post("/animations/narration", async (req, res) => {
   const { text } = (req.body ?? {}) as { text?: unknown };
   if (typeof text !== "string") {

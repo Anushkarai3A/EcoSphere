@@ -7,9 +7,11 @@ Reference: docs/v2/03_ai_and_ml_design.md §2.
 """
 from __future__ import annotations
 
+import io
 import json
 import logging
 import time
+import wave
 from dataclasses import dataclass
 from typing import Any
 
@@ -28,6 +30,8 @@ _MAX_RETRIES = 3          # total attempts (1 primary + 2 retries, 3rd switches 
 _BACKOFF_BASE = 2.0       # seconds; doubles each retry (2 → 4 → 8)
 _RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
 _SUPPORTED_PROVIDERS = frozenset({"groq"})
+_SUPPORTED_TTS_PROVIDERS = frozenset({"groq"})
+TTS_MAX_INPUT_CHARS = 200
 
 log = logging.getLogger("ai.llm")
 
@@ -63,6 +67,16 @@ class ProviderConfig:
     fallback_model: str
 
 
+@dataclass(frozen=True)
+class TTSConfig:
+    provider: str
+    api_key: str
+    base_url: str
+    model: str
+    voice: str
+    response_format: str
+
+
 _client: OpenAI | None = None
 _client_signature: tuple[str, str, str, int] | None = None
 
@@ -93,18 +107,66 @@ def _provider_config() -> ProviderConfig:
     )
 
 
-def _get_client() -> OpenAI:
+def _tts_config() -> TTSConfig:
+    """Resolve and validate TTS independently from the text-generation model."""
+    provider = (settings.tts_provider or "").strip().lower()
+    if provider not in _SUPPORTED_TTS_PROVIDERS:
+        configured = provider or "<empty>"
+        raise LLMConfigurationError(
+            f"Unsupported AI_TTS_PROVIDER {configured!r}. "
+            "The supported provider is 'groq'."
+        )
+    if not settings.groq_api_key.strip():
+        raise LLMConfigurationError(
+            "Groq API key is not configured. Set AI_GROQ_API_KEY for the AI service."
+        )
+    model = settings.tts_model.strip()
+    if not model:
+        raise LLMConfigurationError(
+            "TTS model is not configured. Set AI_TTS_MODEL for the AI service."
+        )
+    voice = settings.tts_voice.strip()
+    if not voice:
+        raise LLMConfigurationError(
+            "TTS voice is not configured. Set AI_TTS_VOICE for the AI service."
+        )
+    response_format = (settings.tts_format or "").strip().lower()
+    if response_format != "wav":
+        raise LLMConfigurationError(
+            f"Unsupported AI_TTS_FORMAT {response_format or '<empty>'!r}. "
+            "Groq Orpheus supports 'wav' only."
+        )
+    return TTSConfig(
+        provider=provider,
+        api_key=settings.groq_api_key.strip(),
+        base_url=settings.groq_base_url,
+        model=model,
+        voice=voice,
+        response_format=response_format,
+    )
+
+
+def _client_for(provider: str, api_key: str, base_url: str) -> OpenAI:
     global _client, _client_signature
-    config = _provider_config()
-    signature = (config.provider, config.api_key, config.base_url, settings.llm_timeout)
+    signature = (provider, api_key, base_url, settings.llm_timeout)
     if _client is None or _client_signature != signature:
         _client = OpenAI(
-            api_key=config.api_key,
-            base_url=config.base_url,
+            api_key=api_key,
+            base_url=base_url,
             timeout=settings.llm_timeout,
         )
         _client_signature = signature
     return _client
+
+
+def _get_client() -> OpenAI:
+    config = _provider_config()
+    return _client_for(config.provider, config.api_key, config.base_url)
+
+
+def _get_tts_client() -> OpenAI:
+    config = _tts_config()
+    return _client_for(config.provider, config.api_key, config.base_url)
 
 
 def reset_client() -> None:
@@ -114,11 +176,29 @@ def reset_client() -> None:
     _client_signature = None
 
 
-TTS_MODEL = "canopylabs/orpheus-v1-english"
-TTS_VOICE = "autumn"
+def _provider_error_detail(exc: Exception) -> str:
+    """Extract the provider's safe message/code, never headers or credentials."""
+    if not isinstance(exc, APIStatusError):
+        return ""
+    detail = ""
+    body = exc.body
+    if isinstance(body, dict):
+        message = body.get("message")
+        if isinstance(message, str):
+            detail = message
+        elif isinstance(body.get("error"), dict):
+            nested = body["error"].get("message")
+            if isinstance(nested, str):
+                detail = nested
+        code = body.get("code")
+        if detail and isinstance(code, str) and code not in detail:
+            detail = f"{detail} ({code})"
+    if not detail:
+        detail = exc.message or ""
+    return " ".join(str(detail).split())[:300]
 
 
-def _classify_exception(exc: Exception, model: str) -> LLMError:
+def _classify_exception(exc: Exception, model: str, *, operation: str = "text") -> LLMError:
     """Map provider/SDK failures to a safe category, status and message."""
     if isinstance(exc, LLMError):
         return exc
@@ -156,6 +236,15 @@ def _classify_exception(exc: Exception, model: str) -> LLMError:
                 category="timeout",
             )
         if status in (400, 422):
+            detail = _provider_error_detail(exc)
+            suffix = f" Provider detail: {detail}." if detail else ""
+            if operation == "tts":
+                return LLMError(
+                    "Groq rejected the TTS request parameters."
+                    f"{suffix} Check AI_TTS_MODEL, AI_TTS_VOICE, and AI_TTS_FORMAT.",
+                    status_code=502,
+                    category="invalid_request",
+                )
             return LLMError(
                 "Groq rejected the request parameters. Check AI_GROQ_MODEL and the generation settings.",
                 status_code=502,
@@ -229,64 +318,188 @@ def _log_failure(
     )
 
 
-def synthesize_speech(text: str, *, voice: str | None = None) -> bytes:
-    """Convert narration text to MP3 bytes via the Groq Orpheus TTS voice.
+def _split_tts_text(text: str, limit: int = TTS_MAX_INPUT_CHARS) -> list[str]:
+    """Split narration without dropping text; prefer sentence and word edges."""
+    remaining = " ".join(text.split())
+    chunks: list[str] = []
+    while len(remaining) > limit:
+        window = remaining[:limit]
+        cut = -1
+        for marker in (". ", "! ", "? ", "; ", ", "):
+            position = window.rfind(marker)
+            if position > cut:
+                cut = position + 1
+        if cut <= 0:
+            cut = window.rfind(" ")
+        if cut <= 0:
+            cut = limit
+        chunk = remaining[:cut].strip()
+        if chunk:
+            chunks.append(chunk)
+        remaining = remaining[cut:].strip()
+    if remaining:
+        chunks.append(remaining)
+    return chunks
 
-    Raises LLMError with an actionable message. NOTE: the Groq org must accept
-    the model's terms in the console or every call fails with a terms error —
-    callers must surface that distinctly (voiceover unavailable, not fatal).
-    """
-    clean = text.strip()
-    if not clean:
-        raise LLMError("Nothing to narrate", status_code=400, category="invalid_request")
-    if len(clean) > 600:
-        clean = clean[:600]
-    t0 = time.monotonic()
-    log.info("TTS request started model=%s chars=%d", TTS_MODEL, len(clean))
+
+def _validate_wav(data: bytes) -> tuple[tuple[int, int, int, str], bytes]:
+    """Return WAV parameters/frames, rejecting empty or malformed audio."""
     try:
-        audio = _get_client().audio.speech.create(
-            model=TTS_MODEL,
-            voice=voice or TTS_VOICE,
-            input=clean,
-            response_format="mp3",
-        )
-        data = audio.read()
-    except Exception as exc:
-        elapsed = time.monotonic() - t0
-        classified = _classify_exception(exc, TTS_MODEL)
-        message = str(classified)
-        status_code = classified.status_code
-        category = classified.category
-        # Surface the terms-gate distinctly so products can degrade gracefully
-        raw = str(exc)
-        if "model_terms_required" in raw or "terms acceptance" in raw:
-            message = (
-                "Groq TTS terms not accepted — the org admin must accept them at "
-                "https://console.groq.com/playground?model=canopylabs%2Forpheus-v1-english"
+        with wave.open(io.BytesIO(data), "rb") as source:
+            params = (
+                source.getnchannels(),
+                source.getsampwidth(),
+                source.getframerate(),
+                source.getcomptype(),
             )
-            category = "terms_not_accepted"
-        log.error(
-            "TTS request failed after %.1fs operation=%s provider=%s model=%s "
-            "category=%s status=%s error_type=%s message=%s",
-            elapsed,
-            "audio.speech.create",
-            settings.llm_provider,
-            TTS_MODEL,
-            category,
-            status_code,
-            type(exc).__name__,
-            message,
-        )
-        raise LLMError(message, status_code=status_code, category=category) from exc
-    elapsed = time.monotonic() - t0
-    log.info("TTS audio received in %.1fs bytes=%d", elapsed, len(data))
-    if not data:
+            frames = source.readframes(source.getnframes())
+    except (wave.Error, EOFError) as exc:
         raise LLMError(
-            "TTS returned empty audio",
+            "TTS provider returned invalid WAV audio.",
+            status_code=502,
+            category="response_parse",
+        ) from exc
+    if not frames or params[0] <= 0 or params[2] <= 0:
+        raise LLMError(
+            "TTS provider returned empty WAV audio.",
             status_code=502,
             category="response_parse",
         )
-    return data
+    return params, frames
+
+
+def _merge_wav_parts(parts: list[bytes]) -> bytes:
+    """Validate and concatenate provider WAV chunks into one playable file."""
+    if not parts:
+        raise LLMError(
+            "TTS provider returned no audio.",
+            status_code=502,
+            category="response_parse",
+        )
+    if len(parts) == 1:
+        _validate_wav(parts[0])
+        return parts[0]
+
+    expected: tuple[int, int, int, str] | None = None
+    frames: list[bytes] = []
+    for part in parts:
+        params, chunk_frames = _validate_wav(part)
+        if params[3] != "NONE":
+            raise LLMError(
+                "TTS provider returned compressed WAV audio; PCM is required for concatenation.",
+                status_code=502,
+                category="response_parse",
+            )
+        if expected is None:
+            expected = params
+        elif params != expected:
+            raise LLMError(
+                "TTS audio chunks used incompatible WAV formats.",
+                status_code=502,
+                category="response_parse",
+            )
+        frames.append(chunk_frames)
+
+    assert expected is not None
+    output = io.BytesIO()
+    with wave.open(output, "wb") as merged:
+        merged.setnchannels(expected[0])
+        merged.setsampwidth(expected[1])
+        merged.setframerate(expected[2])
+        merged.writeframes(b"".join(frames))
+    return output.getvalue()
+
+
+def synthesize_speech(text: str, *, voice: str | None = None) -> bytes:
+    """Convert narration text to one WAV voiceover via Groq Orpheus.
+
+    Groq imposes a 200-character input limit and currently supports WAV only, so
+    longer narration is split at natural boundaries and the WAV chunks are
+    concatenated. Raises LLMError with an actionable message. The Groq org must
+    accept the model's terms or every call fails with a terms error — callers
+    surface that distinctly (voiceover unavailable, not fatal).
+    """
+    config = _tts_config()
+    clean = " ".join(text.split())
+    if not clean:
+        raise LLMError("Nothing to narrate", status_code=400, category="invalid_request")
+    chunks = _split_tts_text(clean)
+    selected_voice = (voice or config.voice).strip()
+    if not selected_voice:
+        raise LLMConfigurationError(
+            "TTS voice is not configured. Set AI_TTS_VOICE for the AI service."
+        )
+
+    t0 = time.monotonic()
+    log.info(
+        "TTS request started provider=%s model=%s voice=%s format=%s chars=%d chunks=%d",
+        config.provider,
+        config.model,
+        selected_voice,
+        config.response_format,
+        len(clean),
+        len(chunks),
+    )
+    audio_parts: list[bytes] = []
+    client = _get_tts_client()
+    for index, chunk in enumerate(chunks, start=1):
+        try:
+            audio = client.audio.speech.create(
+                model=config.model,
+                voice=selected_voice,
+                input=chunk,
+                response_format=config.response_format,
+            )
+            data = audio.read()
+        except Exception as exc:
+            elapsed = time.monotonic() - t0
+            classified = _classify_exception(exc, config.model, operation="tts")
+            message = str(classified)
+            status_code = classified.status_code
+            category = classified.category
+            # Surface the terms-gate distinctly so products can degrade gracefully
+            raw = str(exc)
+            if "model_terms_required" in raw or "terms acceptance" in raw:
+                message = (
+                    "Groq TTS terms not accepted — the org admin must accept them at "
+                    "https://console.groq.com/playground?model=canopylabs%2Forpheus-v1-english"
+                )
+                category = "terms_not_accepted"
+            log.error(
+                "TTS request failed after %.1fs operation=%s provider=%s model=%s "
+                "chunk=%d/%d category=%s status=%s error_type=%s message=%s",
+                elapsed,
+                "audio.speech.create",
+                config.provider,
+                config.model,
+                index,
+                len(chunks),
+                category,
+                status_code,
+                type(exc).__name__,
+                message,
+            )
+            raise LLMError(message, status_code=status_code, category=category) from exc
+        if not data:
+            raise LLMError(
+                "TTS returned empty audio",
+                status_code=502,
+                category="response_parse",
+            )
+        audio_parts.append(data)
+
+    merged = _merge_wav_parts(audio_parts)
+    elapsed = time.monotonic() - t0
+    params, _frames = _validate_wav(merged)
+    log.info(
+        "TTS audio received in %.1fs chunks=%d bytes=%d channels=%d rate=%d",
+        elapsed,
+        len(audio_parts),
+        len(merged),
+        params[0],
+        params[2],
+    )
+    return merged
 
 
 def _call_with_retry(
