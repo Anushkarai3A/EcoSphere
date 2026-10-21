@@ -93,7 +93,7 @@ function waterFilm(): Film {
           } else {
             hero.action = p > 0.6 ? "point" : "stand";
           }
-          const camX = updateFollowCam(film, hero.x, w * 0.42);
+          const camX = updateFollowCam(film, hero.x, w * 0.42, c.dt);
           paintSky(ctx, w, h, G, time, { top: "#7dd3fc", bottom: "#fef9c3", sunScale: 1, clouds: 3, ox: camX, seed: 53 });
           paintGround(ctx, w, h, time, { y: G, color: "#cfc39e", dark: "#9d8f66", ox: camX, seed: 54 });
           drawTap(ctx, 760 - camX, G - 96, 1.6, time, 1);
@@ -183,7 +183,7 @@ function waterFilm(): Film {
           const hero = film.hero;
           hero.x = lerp(hero.x, 420, 0.05);
           hero.action = p < 0.35 ? "walk" : p < 0.62 ? "point" : "stand";
-          const camX = updateFollowCam(film, 560, w * 0.5);
+          const camX = updateFollowCam(film, 560, w * 0.5, c.dt);
           paintSky(ctx, w, h, G, time, { top: "#7dd3fc", bottom: "#fef9c3", sunScale: 1, clouds: 3, ox: camX, seed: 59 });
           paintGround(ctx, w, h, time, { y: G, color: "#cfc39e", dark: "#9d8f66", ox: camX, seed: 60 });
           // Handle visibly rotates as the tap closes; stream dies out
@@ -221,7 +221,7 @@ function waterFilm(): Film {
           friend.x = hero.x - 100;
           friend.facing = 1;
           friend.action = "walk";
-          const camX = updateFollowCam(film, hero.x, w * 0.42);
+          const camX = updateFollowCam(film, hero.x, w * 0.42, c.dt);
           paintSky(ctx, w, h, G, time, { top: "#38bdf8", bottom: "#fef9c3", sunScale: 1.1, clouds: 4, ox: camX, seed: 61 });
           paintGround(ctx, w, h, time, { y: G, color: "#7fb069", dark: "#4d7c43", ox: camX, seed: 62 });
           // Blooming garden row passes by
@@ -379,7 +379,7 @@ function solarFilm(): Film {
           hero.action = "walk";
           hero.facing = 1;
           hero.x += c.dt * 110;
-          const camX = updateFollowCam(film, hero.x, w * 0.42);
+          const camX = updateFollowCam(film, hero.x, w * 0.42, c.dt);
           paintSky(ctx, w, h, G, time, { top: "#38bdf8", bottom: "#fef9c3", sunScale: 1.1, clouds: 3, ox: camX, seed: 78 });
           paintGround(ctx, w, h, time, { y: G, color: "#9aa578", dark: "#6b744e", ox: camX, seed: 79 });
           // Houses stream past; panels pop up as the hero passes
@@ -488,7 +488,7 @@ function wildlifeFilm(): Film {
           } else {
             hero.action = "kneel";
           }
-          const camX = updateFollowCam(film, hero.x, w * 0.5);
+          const camX = updateFollowCam(film, hero.x, w * 0.5, c.dt);
           paintSky(ctx, w, h, G, time, { top: "#7dd3fc", bottom: "#e0f2fe", sunScale: 1, clouds: 2, ox: camX, seed: 96 });
           paintGround(ctx, w, h, time, { y: G, color: "#6b8f5e", dark: "#47663f", ox: camX, seed: 97 });
           drawTree(ctx, 420 - camX, G + 4, 1.3, time);
@@ -519,7 +519,7 @@ function wildlifeFilm(): Film {
           const hero = film.hero;
           hero.x = lerp(hero.x, 380, 0.05);
           hero.action = p < 0.6 ? "point" : "stand";
-          const camX = updateFollowCam(film, 520, w * 0.5);
+          const camX = updateFollowCam(film, 520, w * 0.5, c.dt);
           paintSky(ctx, w, h, G, time, { top: "#7dd3fc", bottom: "#fef9c3", sunScale: 1, clouds: 3, ox: camX, seed: 98 });
           paintGround(ctx, w, h, time, { y: G, color: "#6b8f5e", dark: "#47663f", ox: camX, seed: 99 });
           drawTree(ctx, 560 - camX, G + 4, 1.7, time);
@@ -544,7 +544,8 @@ function wildlifeFilm(): Film {
           ctx.fill();
           // Hammer taps: spark ticks synced to arm
           if (p > 0.25 && p < 0.6 && Math.sin(time * 10) > 0.6) {
-            spawn(film, { x: bx, y: by - 20, vx: (Math.random() - 0.5) * 60, vy: -40, life: 0.4, maxLife: 0.4, size: 2, color: "#fde047" });
+            const sparkFrame = Math.floor(time * 20);
+            spawn(film, { x: bx, y: by - 20, vx: (rand(film.seed + 81, sparkFrame) - 0.5) * 60, vy: -40, life: 0.4, maxLife: 0.4, size: 2, color: "#fde047" });
           }
           drawHeroWorld(ctx, film, hero, G, time, camX);
           stepParts(ctx, film, c.dt);
@@ -657,7 +658,7 @@ function airFilm(): Film {
           } else {
             hero.action = "wipe";
           }
-          const camX = updateFollowCam(film, hero.x, w * 0.42);
+          const camX = updateFollowCam(film, hero.x, w * 0.42, c.dt);
           paintSky(ctx, w, h, G, time, { top: "#64748b", bottom: "#cbd5e1", sunScale: 0.9, clouds: 4, ox: camX, seed: 116 });
           // Smog banks drift through
           ctx.fillStyle = "rgba(148,163,184,0.35)";
@@ -739,7 +740,7 @@ function airFilm(): Film {
           hero.action = "walk";
           hero.facing = 1;
           hero.x += c.dt * 115;
-          const camX = updateFollowCam(film, hero.x, w * 0.42);
+          const camX = updateFollowCam(film, hero.x, w * 0.42, c.dt);
           // Sky clears across the beat
           const clear = smooth(p);
           paintSky(ctx, w, h, G, time, {
@@ -894,7 +895,7 @@ function generalFilm(): Film {
           hero.action = "walk";
           hero.facing = 1;
           hero.x += c.dt * 110;
-          const camX = updateFollowCam(film, hero.x, w * 0.42);
+          const camX = updateFollowCam(film, hero.x, w * 0.42, c.dt);
           paintSky(ctx, w, h, G, time, { top: "#94a3b8", bottom: "#e2e8f0", sunScale: 1, clouds: 3, ox: camX, seed: 145 });
           paintGround(ctx, w, h, time, { y: G, color: "#a8a094", dark: "#78716c", ox: camX, seed: 146 });
           // Three vignette stations the hero passes: litter, running tap, smoke
@@ -1028,7 +1029,7 @@ function generalFilm(): Film {
           friend.x = hero.x - 100;
           friend.facing = 1;
           friend.action = "walk";
-          const camX = updateFollowCam(film, hero.x, w * 0.42);
+          const camX = updateFollowCam(film, hero.x, w * 0.42, c.dt);
           paintSky(ctx, w, h, G, time, { top: "#38bdf8", bottom: "#fef9c3", sunScale: 1.1, clouds: 4, ox: camX, seed: 153 });
           paintGround(ctx, w, h, time, { y: G, color: "#7fb069", dark: "#4d7c43", ox: camX, seed: 154 });
           for (const [wx, s] of [[420, 1.4], [760, 1.6], [1100, 1.5]] as const) {

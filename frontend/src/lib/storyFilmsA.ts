@@ -67,7 +67,7 @@ function forestFilm(): Film {
           } else {
             hero.action = "wipe";
           }
-          const camX = updateFollowCam(film, hero.x, w * 0.42);
+          const camX = updateFollowCam(film, hero.x, w * 0.42, c.dt);
           paintSky(ctx, w, h, GROUND_Y, time, {
             top: "#f59e0b", bottom: "#fcd34d", sunScale: 1.5, clouds: 1, heat: 0.9, ox: camX, seed: 1,
           });
@@ -80,7 +80,7 @@ function forestFilm(): Film {
             drawCar(ctx, lerp(-120, w + 120, smooth(carT)), GROUND_Y + 26, 1, time, "#ef4444", 1);
           }
           // Dust kicked up while walking
-          if (hero.action === "walk" && Math.random() < 0.5) {
+          if (hero.action === "walk" && rand(film.seed + 31, Math.floor(time * 24)) < 0.5) {
             spawn(film, { x: hero.x - camX - 10, y: GROUND_Y - 2, vx: -30, vy: -28, life: 0.7, maxLife: 0.7, size: 2.6, color: "rgba(214,168,92,0.9)" });
           }
           drawHeroWorld(ctx, film, hero, GROUND_Y, time, camX);
@@ -103,7 +103,7 @@ function forestFilm(): Film {
           } else {
             hero.action = p > 0.75 ? "wipe" : "point";
           }
-          const camX = updateFollowCam(film, hero.x, w * 0.5);
+          const camX = updateFollowCam(film, hero.x, w * 0.5, c.dt);
           paintSky(ctx, w, h, GROUND_Y, time, {
             top: "#78716c", bottom: "#d6a85c", sunScale: 1.2, clouds: 2, heat: 0.45, ox: camX, seed: 2,
           });
@@ -113,11 +113,12 @@ function forestFilm(): Film {
             drawStump(ctx, wx - camX, GROUND_Y + 2, s, time);
           }
           // Wind-blown dust sheets
-          if (Math.random() < 0.8) {
+          const dustFrame = Math.floor(time * 18);
+          if (rand(film.seed + 41, dustFrame) < 0.8) {
             spawn(film, {
-              x: Math.random() * w, y: GROUND_Y - 20 - Math.random() * 60,
-              vx: -160 - Math.random() * 80, vy: 6, life: 1.1, maxLife: 1.1,
-              size: 2 + Math.random() * 2, color: "rgba(214,180,130,0.7)",
+              x: rand(film.seed + 42, dustFrame) * w, y: GROUND_Y - 20 - rand(film.seed + 43, dustFrame) * 60,
+              vx: -160 - rand(film.seed + 44, dustFrame) * 80, vy: 6, life: 1.1, maxLife: 1.1,
+              size: 2 + rand(film.seed + 45, dustFrame) * 2, color: "rgba(214,180,130,0.7)",
             });
           }
           drawHeroWorld(ctx, film, hero, GROUND_Y, time, camX);
@@ -135,7 +136,7 @@ function forestFilm(): Film {
           // Hero stands aside watching; the tree is the star
           film.hero.x = lerp(film.hero.x, 300, 0.04);
           film.hero.action = "stand";
-          const camX = updateFollowCam(film, 560, w * 0.5);
+          const camX = updateFollowCam(film, 560, w * 0.5, c.dt);
           paintSky(ctx, w, h, GROUND_Y, time, {
             top: "#38bdf8", bottom: "#bae6fd", sunScale: 1, clouds: 3, ox: camX, seed: 3,
           });
@@ -193,9 +194,10 @@ function forestFilm(): Film {
             // Digging bursts synced to arm rhythm
             if (Math.sin(time * 7) > 0.55) {
               for (let i = 0; i < 3; i++) {
+                const digFrame = Math.floor(time * 20) + i;
                 spawn(film, {
-                  x: spotX - 20 + Math.random() * 40, y: GROUND_Y - 4,
-                  vx: (Math.random() - 0.5) * 90, vy: -90 - Math.random() * 70,
+                  x: spotX - 20 + rand(film.seed + 51, digFrame) * 40, y: GROUND_Y - 4,
+                  vx: (rand(film.seed + 52, digFrame) - 0.5) * 90, vy: -90 - rand(film.seed + 53, digFrame) * 70,
                   life: 0.7, maxLife: 0.7, size: 2.6, color: "#6b3f14", grav: 420,
                 });
               }
@@ -204,7 +206,7 @@ function forestFilm(): Film {
             hero.x = spotX - 46;
             hero.action = "stand";
           }
-          const camX = updateFollowCam(film, spotX, w * 0.5);
+          const camX = updateFollowCam(film, spotX, w * 0.5, c.dt);
           paintSky(ctx, w, h, GROUND_Y, time, {
             top: "#7dd3fc", bottom: "#fef9c3", sunScale: 1, clouds: 3, ox: camX, seed: 4,
           });
@@ -230,7 +232,7 @@ function forestFilm(): Film {
         draw(c) {
           const { ctx, w, h, t, p, film, time } = c;
           film.hero.action = "stand";
-          const camX = updateFollowCam(film, 640, w * 0.5);
+          const camX = updateFollowCam(film, 640, w * 0.5, c.dt);
           // Fast day cycle: sky hue oscillates
           const dayMix = 0.5 + 0.5 * Math.sin(t * 1.8);
           paintSky(ctx, w, h, GROUND_Y, time * 3, {
@@ -249,8 +251,9 @@ function forestFilm(): Film {
           // Rain burst mid-lapse feeds the growth
           if (p > 0.35 && p < 0.6) {
             for (let i = 0; i < 4; i++) {
+              const rainFrame = Math.floor(time * 20) + i;
               spawn(film, {
-                x: Math.random() * w, y: -10, vx: -30, vy: 420,
+                x: rand(film.seed + 61, rainFrame) * w, y: -10, vx: -30, vy: 420,
                 life: 0.8, maxLife: 0.8, size: 2, color: "rgba(125,211,252,0.9)", grav: 0,
               });
             }
@@ -277,7 +280,7 @@ function forestFilm(): Film {
           friend.x = hero.x - 90;
           friend.facing = 1;
           friend.action = "walk";
-          const camX = updateFollowCam(film, hero.x, w * 0.42);
+          const camX = updateFollowCam(film, hero.x, w * 0.42, c.dt);
           paintSky(ctx, w, h, GROUND_Y, time, {
             top: "#38bdf8", bottom: "#fef9c3", sunScale: 1.1, clouds: 4, ox: camX, seed: 12,
           });
@@ -325,7 +328,7 @@ function oceanFilm(): Film {
           } else {
             hero.action = "stand";
           }
-          const camX = updateFollowCam(film, hero.x, w * 0.42);
+          const camX = updateFollowCam(film, hero.x, w * 0.42, c.dt);
           paintSky(ctx, w, h, OCEAN_Y, time, {
             top: "#7dd3fc", bottom: "#e0f2fe", sunScale: 1, clouds: 3, ox: camX, seed: 31,
           });
@@ -361,7 +364,7 @@ function oceanFilm(): Film {
         draw(c) {
           const { ctx, w, h, t, dur, p, film, time } = c;
           film.hero.action = "stand";
-          const camX = updateFollowCam(film, 700, w * 0.5);
+          const camX = updateFollowCam(film, 700, w * 0.5, c.dt);
           paintSky(ctx, w, h, OCEAN_Y, time, {
             top: "#475569", bottom: "#94a3b8", sunScale: 0.8, clouds: 4, ox: camX, seed: 33,
           });
@@ -409,7 +412,7 @@ function oceanFilm(): Film {
         narration: "Rivers act like conveyor belts, carrying plastic far from where it was dropped.",
         draw(c) {
           const { ctx, w, h, p, film, time } = c;
-          const camX = updateFollowCam(film, 900 + p * 500, w * 0.5);
+          const camX = updateFollowCam(film, 900 + p * 500, w * 0.5, c.dt);
           paintSky(ctx, w, h, OCEAN_Y, time, {
             top: "#38bdf8", bottom: "#d9f99d", sunScale: 1, clouds: 3, ox: camX, seed: 37,
           });
@@ -510,10 +513,11 @@ function oceanFilm(): Film {
           drawRecycleBin(ctx, 560, OCEAN_Y - 138, 1.4, time);
           // Second bottle already binned + sparkle
           drawPlasticBottle(ctx, 560, OCEAN_Y - 160, 0.6, time + 3);
-          if (binP > 0.8 && Math.random() < 0.6) {
+          const sparkleFrame = Math.floor(time * 20);
+          if (binP > 0.8 && rand(film.seed + 71, sparkleFrame) < 0.6) {
             spawn(film, {
-              x: 560 + (Math.random() - 0.5) * 40, y: OCEAN_Y - 180,
-              vx: (Math.random() - 0.5) * 30, vy: -40, life: 0.8, maxLife: 0.8,
+              x: 560 + (rand(film.seed + 72, sparkleFrame) - 0.5) * 40, y: OCEAN_Y - 180,
+              vx: (rand(film.seed + 73, sparkleFrame) - 0.5) * 30, vy: -40, life: 0.8, maxLife: 0.8,
               size: 2.4, color: "#fde047",
             });
           }

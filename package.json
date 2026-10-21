@@ -14,6 +14,7 @@
     "dev:worker": "npm run dev:worker -w backend",
     "build": "npm run build -w backend && npm run build -w frontend",
     "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend",
+    "test:animation": "tsx --test frontend/tests/sceneLayout.test.mjs",
     "prisma:generate": "npm run prisma:generate -w backend",
     "prisma:migrate": "npm run prisma:migrate -w backend",
     "prisma:studio": "npm run prisma:studio -w backend",

@@ -130,9 +130,11 @@ export function createFilmState(seed = 7): FilmState {
 
 export const WORLD_W = 1600;
 
-export function updateFollowCam(film: FilmState, targetWorldX: number, anchorScreenX: number): number {
+export function updateFollowCam(film: FilmState, targetWorldX: number, anchorScreenX: number, dt = 1 / 30): number {
   const target = targetWorldX - anchorScreenX;
-  film.camX += (target - film.camX) * 0.06;
+  // Time-based smoothing: 6% toward target per 33ms, independent of frame rate.
+  const k = 1 - Math.pow(0.94, Math.max(0.001, dt) * 30);
+  film.camX += (target - film.camX) * k;
   return film.camX;
 }
 

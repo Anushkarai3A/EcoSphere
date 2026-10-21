@@ -5,6 +5,7 @@
  */
 
 import type { AnimationScene } from "./types";
+import { canvasMeasure, frameLayout, layoutMultilineText } from "./sceneLayout";
 
 export interface RenderContext {
   ctx: CanvasRenderingContext2D;
@@ -1027,7 +1028,22 @@ export function drawSign(
   ctx.fillStyle = "#a16207";
   ctx.strokeStyle = "#57300f";
   ctx.lineWidth = 2;
-  const h = 14 + lines.length * 11;
+  const wrappedLines: string[] = [];
+  for (const line of lines) {
+    const words = line.split(/\s+/).filter(Boolean);
+    let current = "";
+    for (const word of words) {
+      if (!current) current = word;
+      else if (`${current} ${word}`.length <= 18) current = `${current} ${word}`;
+      else {
+        wrappedLines.push(current);
+        current = word;
+      }
+    }
+    if (current) wrappedLines.push(current);
+  }
+  if (wrappedLines.length === 0) wrappedLines.push("");
+  const h = 14 + wrappedLines.length * 11;
   ctx.beginPath();
   ctx.roundRect(-44, -34 - h, 88, h, 4);
   ctx.fill();
@@ -1036,8 +1052,8 @@ export function drawSign(
   ctx.font = "bold 9px system-ui, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  lines.forEach((line, i) => {
-    ctx.fillText(line.slice(0, 20), 0, -34 - h + 12 + i * 11);
+  wrappedLines.forEach((line, i) => {
+    ctx.fillText(line, 0, -34 - h + 12 + i * 11);
   });
   ctx.restore();
 }
@@ -1294,38 +1310,54 @@ export function drawCinematicOverlay(
   ctx.textBaseline = "middle";
   ctx.fillText(`SCENE ${sceneIndex + 1} OF ${totalScenes}`, 84, 30);
 
-  // Bottom Subtitle Ribbon (high contrast readable box)
-  const bottomGrad = ctx.createLinearGradient(0, h - 110, 0, h);
+  // Bottom Subtitle Ribbon (measured wrap, full text, no clipping)
+  const regions = frameLayout(w, h);
+  const safe = regions.safe;
+  const measure = canvasMeasure(ctx);
+  const subtitle = scene.narration || scene.dialogue || scene.visualDescription || "";
+  const subtitleBlock = layoutMultilineText(
+    subtitle,
+    { maxWidth: safe.width - 60, maxLines: 6, maxFontSize: 17, minFontSize: 12, weight: 600, preferredPages: 1 },
+    measure,
+  );
+  const subtitleLines = subtitleBlock.pages.flatMap((p) => p.lines);
+  let takeawayLines: string[] = [];
+  let takeawayBlock = null;
+  if (scene.educational_point || scene.keyTakeaway) {
+    takeawayBlock = layoutMultilineText(
+      `Key takeaway: ${scene.educational_point || scene.keyTakeaway}`,
+      { maxWidth: safe.width - 40, maxLines: 4, maxFontSize: 11, minFontSize: 9, weight: 400, preferredPages: 1 },
+      measure,
+    );
+    takeawayLines = takeawayBlock.pages.flatMap((p) => p.lines);
+  }
+  const boxH =
+    24 +
+    subtitleLines.length * subtitleBlock.lineHeight +
+    (takeawayLines.length > 0 ? 8 + takeawayLines.length * (takeawayBlock?.lineHeight ?? 12) : 0) +
+    18;
+  const boxY = h - boxH;
+  const bottomGrad = ctx.createLinearGradient(0, boxY - 40, 0, h);
   bottomGrad.addColorStop(0, "rgba(0, 0, 0, 0)");
   bottomGrad.addColorStop(0.35, "rgba(15, 23, 42, 0.85)");
   bottomGrad.addColorStop(1, "rgba(15, 23, 42, 0.98)");
   ctx.fillStyle = bottomGrad;
-  ctx.fillRect(0, h - 110, w, 110);
+  ctx.fillRect(0, boxY - 40, w, boxH + 40);
 
-  // Narration subtitle text
-  const subtitle = scene.narration || scene.dialogue || scene.visualDescription || "";
   ctx.fillStyle = "#ffffff";
-  ctx.font = "600 17px system-ui, sans-serif";
+  ctx.font = subtitleBlock.font;
   ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
+  ctx.textBaseline = "top";
+  subtitleLines.forEach((ln, i) => {
+    ctx.fillText(ln, w / 2, boxY + 18 + i * subtitleBlock.lineHeight);
+  });
 
-  // Text wrap if long
-  if (subtitle.length > 75) {
-    const mid = subtitle.lastIndexOf(" ", 75);
-    const line1 = subtitle.slice(0, mid > 0 ? mid : 75);
-    const line2 = subtitle.slice(mid > 0 ? mid + 1 : 75);
-    ctx.fillText(line1, w / 2, h - 62);
-    ctx.fillText(line2, w / 2, h - 38);
-  } else {
-    ctx.fillText(subtitle, w / 2, h - 50);
-  }
-
-  // Educational point badge at bottom
-  if (scene.educational_point || scene.keyTakeaway) {
-    const point = `Key takeaway: ${scene.educational_point || scene.keyTakeaway}`;
-    ctx.font = "11px system-ui, sans-serif";
+  if (takeawayBlock && takeawayLines.length > 0) {
+    ctx.font = takeawayBlock.font;
     ctx.fillStyle = "rgba(52, 211, 153, 0.95)";
-    ctx.fillText(point, w / 2, h - 18);
+    takeawayLines.forEach((ln, i) => {
+      ctx.fillText(ln, w / 2, boxY + 18 + subtitleLines.length * subtitleBlock.lineHeight + 8 + i * takeawayBlock.lineHeight);
+    });
   }
 
   ctx.restore();

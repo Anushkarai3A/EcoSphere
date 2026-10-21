@@ -23,8 +23,9 @@ import { DisplayTitle, MetaRow, Rule } from "@/components/gallery";
 import { ApiError, studentApi } from "@/lib/api";
 import { setHeroVisible } from "@/lib/filmKit";
 import { styleDefFor } from "@/lib/filmStyles";
+import { FRAME_HEIGHT, FRAME_WIDTH, TRANSITION_SECONDS, resolveTransition } from "@/lib/sceneLayout";
 import { planFilmAudio, startStudioAudio } from "@/lib/studioAudio";
-import { FILMS } from "@/lib/storyFilms";
+import { FILMS, drawFilmFrame, drawFilmOverlay, planFilm, renderBeatPreview } from "@/lib/storyFilms";
 import { compositeStyledWorld, paintStyleTransition } from "@/lib/styleRender";
 import type { GenerateAnimationInput, StudentAnimation } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -106,13 +107,12 @@ export function AnimationStudioPage() {
   const worldRef = useRef<HTMLCanvasElement | null>(null);
   const styleRef = useRef<HTMLCanvasElement | null>(null);
   const pixelRef = useRef<HTMLCanvasElement | null>(null);
-  const TRANSITION_SECONDS = 0.7;
 
   const getScratch = (ref: React.MutableRefObject<HTMLCanvasElement | null>): CanvasRenderingContext2D | null => {
     const c = ref.current ?? document.createElement("canvas");
     ref.current = c;
-    c.width = 960;
-    c.height = 540;
+    c.width = FRAME_WIDTH;
+    c.height = FRAME_HEIGHT;
     return c.getContext("2d");
   };
 
@@ -269,9 +269,6 @@ export function AnimationStudioPage() {
     animation: StudentAnimation,
     voice: { buffers: (AudioBuffer | null)[]; notice: string | null },
   ): Promise<{ videoUrl: string | null; thumbnailUrl: string | null; voiceUsed: boolean }> => {
-    const { planFilm, drawFilmFrame, renderBeatPreview, drawFilmOverlay, FILMS } = await import(
-      "@/lib/storyFilms"
-    );
     const canvas = canvasRef.current;
     if (!canvas) throw new Error("Animation canvas is not available in this browser.");
     const ctx = canvas.getContext("2d");
@@ -307,8 +304,8 @@ export function AnimationStudioPage() {
     }
     const total = plan.total;
 
-    canvas.width = 960;
-    canvas.height = 540;
+    canvas.width = FRAME_WIDTH;
+    canvas.height = FRAME_HEIGHT;
 
     const audioCtx = new AudioContext();
     try {
@@ -339,7 +336,20 @@ export function AnimationStudioPage() {
       src.start(t0 + (i === 0 ? 0 : (plan.bounds[i - 1] ?? 0)));
     });
 
-    const canvasStream = canvas.captureStream(30);
+    // Manual frame capture: push a frame after every canvas draw so the
+    // recording follows the drawn frames 1:1 (the timer-driven 30fps capture
+    // can stall and record stale frames on slow/software-rendered machines).
+    let canvasStream = canvas.captureStream(0);
+    let captureTrack = canvasStream.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack | undefined;
+    if (typeof captureTrack?.requestFrame !== "function") {
+      captureTrack?.stop();
+      canvasStream = canvas.captureStream(30);
+      captureTrack = undefined;
+    }
+    const manualCapture = typeof captureTrack?.requestFrame === "function";
+    const pushFrame = () => {
+      if (manualCapture) captureTrack?.requestFrame();
+    };
     const mixedStream = new MediaStream([
       ...canvasStream.getVideoTracks(),
       ...audioDest.stream.getAudioTracks(),
@@ -371,8 +381,19 @@ export function AnimationStudioPage() {
         })
       : new MediaRecorder(mixedStream);
     const recordedChunks: Blob[] = [];
+    let recStartWall = performance.now();
+    let firstChunkLogged = false;
     recorder.ondataavailable = (event) => {
-      if (event.data && event.data.size > 0) recordedChunks.push(event.data);
+      if (event.data && event.data.size > 0) {
+        recordedChunks.push(event.data);
+        if (!firstChunkLogged) {
+          firstChunkLogged = true;
+          // eslint-disable-next-line no-console
+          console.debug(
+            `[studio] first dataavailable: +${(performance.now() - recStartWall).toFixed(0)}ms size=${event.data.size}`,
+          );
+        }
+      }
     };
     const recorderStopped = new Promise<void>((resolve) => {
       recorder.onstop = () => resolve();
@@ -382,12 +403,30 @@ export function AnimationStudioPage() {
     const state = film.createState();
     const world = worldRef.current ?? document.createElement("canvas");
     worldRef.current = world;
-    world.width = 960;
-    world.height = 540;
+    world.width = FRAME_WIDTH;
+    world.height = FRAME_HEIGHT;
     const wctx = world.getContext("2d");
     if (!wctx) throw new Error("Animation canvas is not available in this browser.");
     setHeroVisible(styleDef.showHero);
+    // Wait for fonts before the first captured frame so text metrics do not change mid-recording.
+    const tFonts = performance.now();
+    if (document.fonts?.ready) await document.fonts.ready;
+    const fontsMs = performance.now() - tFonts;
+    const pixelScratch = pixelRef.current ?? document.createElement("canvas");
+    pixelRef.current = pixelScratch;
+    getScratch(styleRef);
+    // Prime the first frame so the recorder never starts on a blank canvas.
+    drawFilmFrame(wctx, FRAME_WIDTH, FRAME_HEIGHT, plan, state, 0, 1 / 30);
+    compositeStyledWorld(ctx, world, styleId, pixelScratch);
+    drawFilmOverlay(ctx, FRAME_WIDTH, FRAME_HEIGHT, plan, 0, 0, styleId, TRANSITION_SECONDS);
+    pushFrame();
+    recStartWall = performance.now();
     recorder.start(500);
+    // eslint-disable-next-line no-console
+    console.debug(
+      `[studio] record begin: +0ms vis=${document.visibilityState} audio=${audioCtx.state} ` +
+        `mime=${recorder.mimeType} state=${recorder.state} fontsMs=${fontsMs.toFixed(0)} manualCapture=${manualCapture}`,
+    );
 
     // Motion quality gate: downsampled frame differencing (static output fails)
     const sampleCanvas = document.createElement("canvas");
@@ -409,6 +448,7 @@ export function AnimationStudioPage() {
         let framesDrawn = 0;
         let settled = false;
         let lastFrameWall = Date.now();
+        let lastDrawnAt = 0;
         const finish = (err?: Error) => {
           if (settled) return;
           settled = true;
@@ -450,9 +490,15 @@ export function AnimationStudioPage() {
             try {
               void audioCtx.resume();
             } catch {
-              // ignore
+              // ignore resume errors
             }
           }
+          // eslint-disable-next-line no-console
+          console.debug(
+            `[studio] visibility=${document.hidden ? "hidden" : "visible"} ` +
+              `elapsed≈${((performance.now() - startStamp) / 1000).toFixed(2)}s ` +
+              `recState=${recorder.state} audio=${audioCtx.state}`,
+          );
         };
         document.addEventListener("visibilitychange", onVisibility);
 
@@ -461,34 +507,42 @@ export function AnimationStudioPage() {
             framesDrawn++;
             lastFrameWall = Date.now();
             const elapsed = (now - startStamp - pausedTotal) / 1000;
+            if (framesDrawn === 1) {
+              // eslint-disable-next-line no-console
+              console.debug(
+                `[studio] first frame: elapsed=${elapsed.toFixed(3)}s rafSkew=${(now - startStamp).toFixed(0)}ms vis=${document.visibilityState}`,
+              );
+            }
+            const frameDt = Math.max(0.001, Math.min(0.1, elapsed - lastDrawnAt));
+            lastDrawnAt = elapsed;
             // Pixel-art time quantization: choppy 12fps sprite feel, real behavior
             const tDraw = styleDef.pixelate ? Math.floor(elapsed * styleDef.clockFps) / styleDef.clockFps : elapsed;
-            const { beatIndex } = drawFilmFrame(wctx, 960, 540, plan, state, tDraw);
-            const pixelScratch = pixelRef.current ?? document.createElement("canvas");
-            pixelRef.current = pixelScratch;
+            const { beatIndex } = drawFilmFrame(wctx, FRAME_WIDTH, FRAME_HEIGHT, plan, state, tDraw, frameDt);
             compositeStyledWorld(ctx, world, styleId, pixelScratch);
-            // Style-specific transition into the next beat over the last stretch
-            const sceneEnd = plan.bounds[beatIndex] ?? total;
-            const timeLeft = sceneEnd - elapsed;
-            const hasNext = beatIndex + 1 < film.beats.length;
-            if (hasNext && timeLeft < TRANSITION_SECONDS && timeLeft > 0) {
+            drawFilmOverlay(ctx, FRAME_WIDTH, FRAME_HEIGHT, plan, beatIndex, elapsed, styleId, TRANSITION_SECONDS);
+            // Style-specific transition into the next beat over the last stretch.
+            // Both the outgoing and incoming frames are complete (world + overlay),
+            // so text/composition crossfades stay coherent instead of popping at the cut.
+            const transition = resolveTransition(plan.bounds, elapsed, TRANSITION_SECONDS);
+            if (transition.active) {
               const off = dissolveRef.current ?? document.createElement("canvas");
               dissolveRef.current = off;
-              off.width = 960;
-              off.height = 540;
+              off.width = FRAME_WIDTH;
+              off.height = FRAME_HEIGHT;
               const octx = off.getContext("2d");
               const styled = getScratch(styleRef);
               if (octx && styled) {
-                renderBeatPreview(octx, 960, 540, plan, state, beatIndex + 1, tDraw);
+                renderBeatPreview(octx, FRAME_WIDTH, FRAME_HEIGHT, plan, state, transition.nextIndex, tDraw);
                 compositeStyledWorld(styled, off, styleId, pixelScratch);
+                drawFilmOverlay(styled, FRAME_WIDTH, FRAME_HEIGHT, plan, transition.nextIndex, elapsed, styleId, TRANSITION_SECONDS);
                 const styledCanvas = styleRef.current;
                 if (styledCanvas) {
-                  paintStyleTransition(ctx, styledCanvas, styleId, 1 - timeLeft / TRANSITION_SECONDS, 960, 540);
+                  paintStyleTransition(ctx, styledCanvas, styleId, transition.progress, FRAME_WIDTH, FRAME_HEIGHT);
                 }
               }
             }
-            drawFilmOverlay(ctx, 960, 540, plan, beatIndex, elapsed, styleId);
             // Motion gate sampling (every 30th frame, downsampled)
+            pushFrame();
             if (sampleCtx && framesDrawn % 30 === 0) {
               sampleCtx.drawImage(canvas, 0, 0, 96, 54);
               const d = sampleCtx.getImageData(0, 0, 96, 54).data;
@@ -544,9 +598,17 @@ export function AnimationStudioPage() {
       // already closed
     }
 
-    // QUALITY GATE: reject near-static output instead of marking it READY
+    // QUALITY GATE: reject near-static output instead of marking it READY.
+    // Sample count alone must not fail a visibly moving film: slow machines
+    // render fewer frames than the sampling cadence expects, but a single
+    // comparison above the threshold is already proof of motion.
     const meanMotion = motionN > 0 ? motionAcc / motionN : 0;
-    if (motionN < 3 || meanMotion < 0.4) {
+    if (motionN === 0) {
+      throw new Error(
+        "Recording captured too few frames to verify motion. Please keep this tab visible and try again.",
+      );
+    }
+    if (meanMotion < 0.4) {
       throw new Error(
         `Quality gate rejected the recording (motion score ${meanMotion.toFixed(2)} — the animation looked static). Please try again.`,
       );
