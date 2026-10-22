@@ -355,6 +355,102 @@ export interface ReviewDecisionInput {
   note?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Teacher review dashboard (assignments / quiz attempts / quest evidence)
+// ---------------------------------------------------------------------------
+
+export interface ReviewStudentRef {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  studentProfile?: { usn: string | null } | null;
+}
+
+export interface ReviewSummary {
+  headline: {
+    pendingReview: number;
+    awaitingAi: number;
+    aiCompleted: number;
+    aiFailedOrManual: number;
+  };
+  assignments: { ungraded: number; graded: number; returned: number; total: number };
+  quizzes: { attempts: number; passed: number; failed: number };
+  evidence: {
+    byStatus: Record<SubmissionStatus, number>;
+    runs: Record<"PENDING" | "RUNNING" | "COMPLETED" | "FAILED", number>;
+  };
+}
+
+export interface ReviewListEnvelope<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface ReviewAssignmentItem extends Omit<
+  AssignmentSubmission,
+  "student" | "assignment" | "grader"
+> {
+  student: ReviewStudentRef;
+  grader: { id: string; firstName: string; lastName: string } | null;
+  assignment: {
+    id: string;
+    title: string;
+    description: string;
+    subject: string | null;
+    type: string;
+    dueAt: string;
+    maxMarks: number;
+    passMarks: number | null;
+    gradingType: string;
+    submissionType: string;
+    status: string;
+    xpReward: XpValue;
+    allowResubmission: boolean;
+    teacherFeedbackEnabled: boolean;
+  };
+}
+
+export interface ReviewAttemptItem {
+  id: string;
+  score: number;
+  maxScore: number;
+  passed: boolean;
+  answers: unknown;
+  submittedAt: string;
+  student: ReviewStudentRef;
+  quiz: { id: string; title: string; passThreshold: number | null; questionCount: number; status: string } | null;
+  sideQuest: { id: string; title: string; passThreshold: number | null; description: string | null } | null;
+}
+
+export interface ReviewAttemptQuestion {
+  id: string;
+  position: number;
+  prompt: string;
+  options: QuizOption[];
+  qType: string | null;
+  correctIndex: number;
+  explanation: string | null;
+  selectedIndex: number;
+  correct: boolean;
+  unanswered: boolean;
+}
+
+export interface ReviewAttemptDetail {
+  attempt: { id: string; score: number; maxScore: number; passed: boolean; submittedAt: string };
+  student: ReviewStudentRef;
+  quiz: { id: string; title: string; description: string | null; questionCount: number; passThreshold: number | null; status: string } | null;
+  sideQuest: { id: string; title: string; description: string | null; passThreshold: number | null } | null;
+  questions: ReviewAttemptQuestion[];
+}
+
+export interface ReviewEvidenceItem extends ReviewQueueItem {
+  student: ReviewStudentRef;
+  quest: ReviewQueueItem["quest"] & { description: string | null };
+}
+
 export type UserStatusFilter =
   | "PENDING_ADMIN_APPROVAL"
   | "PENDING_TEACHER_APPROVAL"

@@ -20,8 +20,14 @@ import type {
   QuizStatus,
   RegisterStudentInput,
   RegisterTeacherInput,
+  ReviewAssignmentItem,
+  ReviewAttemptDetail,
+  ReviewAttemptItem,
   ReviewDecisionInput,
+  ReviewEvidenceItem,
+  ReviewListEnvelope,
   ReviewQueueItem,
+  ReviewSummary,
   SafeUser,
   StudentQuiz,
   StudentQuizDetail,
@@ -308,12 +314,48 @@ export const participationApi = {
   },
 };
 
+export interface ReviewListParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+  result?: "passed" | "failed";
+  from?: string;
+  to?: string;
+}
+
+function reviewListQuery(params: ReviewListParams): string {
+  const search = new URLSearchParams();
+  if (params.page) search.set("page", String(params.page));
+  if (params.pageSize) search.set("pageSize", String(params.pageSize));
+  if (params.search) search.set("search", params.search);
+  if (params.status) search.set("status", params.status);
+  if (params.result) search.set("result", params.result);
+  if (params.from) search.set("from", params.from);
+  if (params.to) search.set("to", params.to);
+  const qs = search.toString();
+  return qs ? `?${qs}` : "";
+}
+
 export const reviewApi = {
   queue: () => apiFetch<{ items: ReviewQueueItem[]; count: number }>("/review/queue"),
   decide: (submissionId: string, input: ReviewDecisionInput) =>
     apiFetch<{ submission: Submission }>(`/submissions/${submissionId}/review`, {
       method: "POST",
       body: JSON.stringify(input),
+    }),
+  summary: () => apiFetch<ReviewSummary>("/review/summary"),
+  assignments: (params: ReviewListParams = {}) =>
+    apiFetch<ReviewListEnvelope<ReviewAssignmentItem>>(`/review/assignments${reviewListQuery(params)}`),
+  attempts: (params: ReviewListParams = {}) =>
+    apiFetch<ReviewListEnvelope<ReviewAttemptItem>>(`/review/quizzes/attempts${reviewListQuery(params)}`),
+  attemptDetail: (attemptId: string) =>
+    apiFetch<ReviewAttemptDetail>(`/review/quizzes/attempts/${attemptId}`),
+  evidence: (params: ReviewListParams = {}) =>
+    apiFetch<ReviewListEnvelope<ReviewEvidenceItem>>(`/review/evidence${reviewListQuery(params)}`),
+  verifyEvidence: (submissionId: string) =>
+    apiFetch<{ id: string; status: string; queued: boolean }>(`/review/evidence/${submissionId}/verify`, {
+      method: "POST",
     }),
 };
 
